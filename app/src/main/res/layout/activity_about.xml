@@ -1,0 +1,263 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+
+    android:background="@color/app_background">
+
+
+    <LinearLayout
+
+        android:layout_width="match_parent"
+
+        android:layout_height="wrap_content"
+
+        android:orientation="vertical"
+
+        android:padding="24dp">
+
+
+
+        <TextView
+
+            android:layout_width="wrap_content"
+
+            android:layout_height="wrap_content"
+
+            android:text="🎨 PixelColorPicker"
+
+            android:textSize="30sp"
+
+            android:textStyle="bold"
+
+            android:textColor="?android:attr/textColorPrimary"/>
+
+
+
+        <TextView
+
+            android:layout_width="wrap_content"
+
+            android:layout_height="wrap_content"
+
+            android:text="图片像素化 / 色板码转换工具"
+
+            android:textSize="16sp"
+
+            android:layout_marginTop="8dp"
+
+            android:textColor="?android:attr/textColorSecondary"/>
+
+
+
+
+
+        <!-- 使用说明 -->
+
+        <androidx.cardview.widget.CardView
+
+            android:layout_width="match_parent"
+
+            android:layout_height="wrap_content"
+
+            android:layout_marginTop="24dp"
+
+            app:cardCornerRadius="24dp"
+
+            app:cardElevation="0dp"
+
+            app:cardBackgroundColor="@color/card_background">
+
+
+            <LinearLayout
+
+                android:layout_width="match_parent"
+
+                android:layout_height="wrap_content"
+
+                android:orientation="vertical"
+
+                android:padding="20dp">
+
+
+                <TextView
+
+                    android:layout_width="wrap_content"
+
+                    android:layout_height="wrap_content"
+
+                    android:text="📖 使用说明"
+
+                    android:textSize="20sp"
+
+                    android:textStyle="bold"/>
+
+
+
+                <TextView
+
+                    android:layout_width="match_parent"
+
+                    android:layout_height="wrap_content"
+
+                    android:layout_marginTop="16dp"
+
+                    android:text="① 选择图片&#10;&#10;从相册选择需要分析的图片。&#10;&#10;② 裁剪图片&#10;&#10;拖动四角调整裁剪区域，自定义裁剪范围。&#10;&#10;③ 像素转换&#10;&#10;裁剪完成后，一键转换16×16规格像素画。&#10;&#10;④ 导出图片&#10;&#10;保存生成的16×16规格像素图片。&#10;&#10;⑤ 自动取色&#10;&#10;批量解析图片像素，提取颜色信息。&#10;&#10;⑥ 颜色面板&#10;&#10;查看16×16颜色值，点击色块复制色板码。&#10;&#10;⑦ 色彩编码&#10;&#10;生成256色压缩码，支持纵列编码复制。"
+
+                    android:textSize="16sp"
+
+                    android:lineSpacingExtra="8dp"/>
+
+
+            </LinearLayout>
+
+
+        </androidx.cardview.widget.CardView>
+
+
+
+
+
+
+
+        <!-- 关于软件 -->
+
+        <androidx.cardview.widget.CardView
+
+            android:layout_width="match_parent"
+
+            android:layout_height="wrap_content"
+
+            android:layout_marginTop="16dp"
+
+            app:cardCornerRadius="24dp"
+
+            app:cardElevation="0dp"
+
+            app:cardBackgroundColor="@color/card_background">
+
+
+            <LinearLayout
+
+                android:layout_width="match_parent"
+
+                android:layout_height="wrap_content"
+
+                android:orientation="vertical"
+
+                android:padding="20dp">
+
+
+
+                <TextView
+
+                    android:layout_width="wrap_content"
+
+                    android:layout_height="wrap_content"
+
+                    android:text="✨ 关于 PixelColorPicker"
+
+                    android:textSize="20sp"
+
+                    android:textStyle="bold"/>
+
+
+
+                <TextView
+
+                    android:layout_width="match_parent"
+
+                    android:layout_height="wrap_content"
+
+                    android:layout_marginTop="16dp"
+
+                    android:text="Version 1.0.0&#10;&#10;PixelColorPicker 是一个简单易用的图片颜色分析工具。&#10;&#10;最初只是为了方便提取图片像素颜色，后来逐渐加入了裁剪、颜色压缩、调色板导出等功能。&#10;&#10;希望这个小工具能帮助喜欢像素艺术、UI设计、绘画和开发的人。&#10;&#10;感谢你的使用 ∞ ₍ᐢ..ᐢ₎♡。"
+
+                    android:textSize="16sp"
+
+                    android:lineSpacingExtra="8dp"/>
+
+
+            </LinearLayout>
+
+
+        </androidx.cardview.widget.CardView>
+
+
+
+
+
+
+
+        <!-- 贡献者 -->
+
+        <androidx.cardview.widget.CardView
+
+            android:layout_width="match_parent"
+
+            android:layout_height="wrap_content"
+
+            android:layout_marginTop="16dp"
+
+            app:cardCornerRadius="24dp"
+
+            app:cardElevation="0dp"
+
+            app:cardBackgroundColor="@color/card_background">
+
+
+            <LinearLayout
+
+                android:layout_width="match_parent"
+
+                android:layout_height="wrap_content"
+
+                android:orientation="vertical"
+
+                android:padding="20dp">
+
+
+                <TextView
+
+                    android:layout_width="wrap_content"
+
+                    android:layout_height="wrap_content"
+
+                    android:text="🤝 贡献者介绍"
+
+                    android:textSize="20sp"
+
+                    android:textStyle="bold"/>
+
+
+
+                <TextView
+
+                    android:layout_width="match_parent"
+
+                    android:layout_height="wrap_content"
+
+                    android:layout_marginTop="16dp"
+
+                    android:text="· 设计&amp;构建：Sylvaine&#10;&#10;· 核心逻辑：ChatGPT&#10;&#10;· 裁剪组件：DeepSeek&#10;&#10;· 图标绘制：豆包&#10;&#10;Made with Android ❤️"
+
+                    android:textSize="16sp"
+
+                    android:lineSpacingExtra="8dp"/>
+
+
+            </LinearLayout>
+
+
+        </androidx.cardview.widget.CardView>
+
+
+
+
+    </LinearLayout>
+
+
+</ScrollView>

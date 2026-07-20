@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<resources>
+
+    <color name="tianyi_blue">#66CCFF</color>
+
+    <color name="tianyi_blue_dark">#3399FF</color>
+
+
+    <!-- 浅色背景 -->
+    <color name="app_background">#F3FAFF</color>
+
+
+    <!-- 浅色卡片 -->
+    <color name="card_background">#EAF7FF</color>
+
+
+</resources>

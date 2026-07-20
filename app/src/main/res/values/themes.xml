@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<resources>
+
+    <style name="Base.AppTheme" parent="Theme.Material3.DayNight.NoActionBar">
+
+        <!-- 天依蓝主题 -->
+        <item name="colorPrimary">@color/tianyi_blue</item>
+        <item name="colorPrimaryContainer">@color/tianyi_blue</item>
+
+        <!-- 状态栏 -->
+        <item name="android:statusBarColor">@color/tianyi_blue</item>
+
+        <!-- 状态栏文字深色 -->
+        <item name="android:windowLightStatusBar">true</item>
+
+        <!-- 页面背景 -->
+        <item name="android:windowBackground">@color/app_background</item>
+
+    </style>
+
+
+    <style name="AppTheme" parent="Base.AppTheme" />
+
+</resources>
