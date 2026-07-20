@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/PixelColorPicker-banner.png" width="700">
+</p>
+
 # PixelColorPicker
 
 一款简单易用的 Android 图片像素化 / 色板码转换工具。
