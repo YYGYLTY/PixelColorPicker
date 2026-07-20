@@ -7,30 +7,42 @@ PixelColorPicker
 </h1>
 
 <p align="center">
-Android 图片像素化 / 色板码转换工具
+Android 像素化 / 色板码转换工具
 </p>
-
 
 <p align="center">
 
-<img src="https://img.shields.io/badge/Platform-Android-green">
-<img src="https://img.shields.io/badge/Language-Java-orange">
-<img src="https://img.shields.io/badge/License-MIT-blue">
+<img src="https://img.shields.io/badge/Platform-Android-green?style=flat-square&logo=android">
+
+<img src="https://img.shields.io/badge/Language-Java-orange?style=flat-square&logo=java">
+
+<img src="https://img.shields.io/badge/License-MIT-blue?style=flat-square">
+
+<img src="https://img.shields.io/badge/Version-1.0.0-purple?style=flat-square">
 
 </p>
 
 
 ---
 
-## ✨ 简介
+# ✨ 简介
 
-PixelColorPicker 是一款简单易用的 Android 图片处理工具。
+PixelColorPicker 是一款专为 **16×16 像素图制作流程优化** 的 Android 图片处理工具。
 
-它可以将普通图片转换为像素化图像，并自动分析图片颜色，生成对应色板数据。
+本项目最初用于解决《像素射击》手游头像制作过程中，
+普通取色工具操作繁琐、颜色整理困难的问题。
 
-主要用于：
+它可以帮助用户：
 
-- 🎮 游戏贴图制作
+- 将图片转换为 16×16 像素图
+- 自动分析 256 格像素颜色
+- 生成对应色板数据
+- 批量复制游戏所需色板码
+
+
+适用于：
+
+- 🎮 游戏像素头像制作
 - 🎨 像素艺术创作
 - 🌈 图片颜色分析
 
@@ -42,37 +54,42 @@ PixelColorPicker 是一款简单易用的 Android 图片处理工具。
 
 ## 🖼️ 图片选择
 
-从相册选择需要处理的图片。
-
-支持常见图片格式。
+- 从相册选择需要处理的图片
+- 支持常见图片格式
 
 
 ## ✂️ 自定义裁剪
 
-自由调整图片裁剪区域。
-
-精准选择需要转换的画面范围。
-
-
-## 🎨 像素化处理
-
-- 图片转换为 16×16 像素图
-- 自动分析颜色信息
-- 保留主要视觉特征
+- 自由调整裁剪区域
+- 精确选择需要转换的画面范围
 
 
-## 🌈 色板提取
+## 🎨 16×16 像素转换
 
-自动提取图片主要颜色。
+- 将图片转换为 16×16 像素规格
+- 自动分析每个像素颜色
+- 保留原图主要视觉特征
 
-生成对应颜色数据。
+
+## 🌈 256色色板生成
+
+- 自动提取像素颜色信息
+- 生成完整颜色排列
+- 快速查看每个像素对应颜色
 
 
-## 📋 数据导出
+## 📋 色板码导出
 
-生成可复制的色板码数据。
+- 自动生成颜色数据
+- 支持批量复制纵列16格色板码
+- 无需手动记录大量颜色信息
 
-方便用于游戏以及像素创作。
+
+---
+
+# 🎬 Demo Video
+
+（视频制作完成后放置）
 
 
 ---
@@ -89,6 +106,44 @@ PixelColorPicker 是一款简单易用的 Android 图片处理工具。
 <img src="assets/screenshot_palette.jpg" width="260">
 
 </p>
+
+
+---
+
+# ⚡ 为什么需要 PixelColorPicker？
+
+传统制作16×16像素头像：
+
+```
+图片
+ ↓
+手动取色
+ ↓
+记录颜色代码
+ ↓
+整理色板
+ ↓
+输入游戏
+```
+
+
+使用 PixelColorPicker：
+
+```
+图片
+ ↓
+自动分析
+ ↓
+生成256色数据
+ ↓
+复制色板码
+ ↓
+完成
+```
+
+
+大幅减少重复操作，
+提高像素头像制作效率。
 
 
 ---
@@ -117,7 +172,7 @@ PixelColorPicker 是一款简单易用的 Android 图片处理工具。
 
 # 📄 License
 
-MIT License
+This project is licensed under the MIT License.
 
 
 ---
