@@ -54,10 +54,14 @@ PixelColorPicker 是一款简单易用的 Android 图片颜色分析工具。
 
 ## 📱 项目截图
 
+
 <p align="center">
-  <img src="assets/screenshot_main.png" width="250">
-  <img src="assets/screenshot_crop.png" width="250">
-  <img src="assets/screenshot_palette.png" width="250">
+  <img src="assets/screenshot_main.jpg" width="280">
+</p>
+
+<p align="center">
+  <img src="assets/screenshot_crop.jpg" width="280">
+  <img src="assets/screenshot_palette.jpg" width="280">
 </p>
 
 
@@ -90,6 +94,7 @@ PixelColorPicker 是一款简单易用的 Android 图片颜色分析工具。
 
 
 ## 📝 更新日志
+
 
 ### Version 1.0.0
 
