@@ -81,3 +81,12 @@ lint/generated/
 lint/outputs/
 lint/tmp/
 # lint/reports/
+
+# AndroidIDE
+.androidide/
+
+# Gradle cache
+.gradle/
+
+# Build output
+**/build/
