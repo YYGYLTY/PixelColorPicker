@@ -10,19 +10,19 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Platform-Android-3DDC84?style=for-the-badge&logo=android&logoColor=white">
-  <img src="https://img.shields.io/badge/Language-Java-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white">
-  <img src="https://img.shields.io/badge/Version-1.0.1-8A2BE2?style=for-the-badge">
-  <img src="https://img.shields.io/badge/License-MIT-1E90FF?style=for-the-badge">
+  <img src="https://img.shields.io/badge/Platform-Android-3DDC84?style=for-the-badge&logo=android&logoColor=white&labelColor=1a1b27">
+  <img src="https://img.shields.io/badge/Language-Java-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white&labelColor=1a1b27">
+  <img src="https://img.shields.io/badge/Version-1.0.1-8A2BE2?style=for-the-badge&labelColor=1a1b27">
+  <img src="https://img.shields.io/badge/License-MIT-1E90FF?style=for-the-badge&labelColor=1a1b27">
   <br>
-  <img src="https://img.shields.io/github/stars/YYGYLTY/PixelColorPicker?style=for-the-badge">
-  <img src="https://img.shields.io/github/forks/YYGYLTY/PixelColorPicker?style=for-the-badge">
-  <img src="https://img.shields.io/github/v/release/YYGYLTY/PixelColorPicker?style=for-the-badge">
-  <img src="https://img.shields.io/github/downloads/YYGYLTY/PixelColorPicker/total?style=for-the-badge">
+  <img src="https://img.shields.io/github/stars/YYGYLTY/PixelColorPicker?style=for-the-badge&color=yellow&labelColor=1a1b27">
+  <img src="https://img.shields.io/github/forks/YYGYLTY/PixelColorPicker?style=for-the-badge&color=blue&labelColor=1a1b27">
+  <img src="https://img.shields.io/github/v/release/YYGYLTY/PixelColorPicker?style=for-the-badge&color=blueviolet&labelColor=1a1b27">
+  <img src="https://img.shields.io/github/downloads/YYGYLTY/PixelColorPicker/total?style=for-the-badge&color=success&labelColor=1a1b27">
   <br>
-  <img src="https://img.shields.io/badge/Pixel_Art-16%C3%9716-ff69b4?style=for-the-badge&logo=adobe&logoColor=white">
-  <img src="https://img.shields.io/badge/Made_with-%E2%9D%A4-red?style=for-the-badge">
-  <img src="https://img.shields.io/badge/Open_Source-%F0%9F%92%8E-lightgrey?style=for-the-badge">
+  <img src="https://img.shields.io/badge/16×16_Pixel_Art-🎨-ff69b4?style=for-the-badge&labelColor=1a1b27">
+  <img src="https://img.shields.io/badge/Open_Source-💎-lightgrey?style=for-the-badge&labelColor=1a1b27">
+  <img src="https://img.shields.io/badge/Made_with-❤️-red?style=for-the-badge&labelColor=1a1b27">
 </p>
 
 ---
