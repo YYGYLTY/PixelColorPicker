@@ -2,52 +2,27 @@
   <img src="assets/PixelColorPicker-banner.png" width="800">
 </p>
 
-<h1 align="center">PixelColorPicker</h1>
+<h1 align="center">🎨 PixelColorPicker</h1>
 
 <p align="center">
-  Android Pixel Art & Palette Generator
+  <b>Android Pixel Art & Palette Generator</b><br>
+  <i>一款专为 16×16 像素图片制作与色板码生成而设计的 Android 工具</i>
 </p>
 
 <p align="center">
-一款专为 16×16 像素图片制作与色板码生成而设计的 Android 工具。
-</p>
-
-<p align="center">
-
-<img src="https://img.shields.io/badge/Platform-Android-3DDC84?style=for-the-badge&logo=android&logoColor=white">
-
-<img src="https://img.shields.io/badge/Language-Java-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white">
-
-<img src="https://img.shields.io/badge/Version-v1.0.1-8A2BE2?style=for-the-badge">
-
-<img src="https://img.shields.io/badge/License-MIT-1E90FF?style=for-the-badge">
-
-</p>
-
-<p align="center">
-
-<img src="https://img.shields.io/github/stars/YYGYLTY/PixelColorPicker?style=for-the-badge">
-
-<img src="https://img.shields.io/github/forks/YYGYLTY/PixelColorPicker?style=for-the-badge">
-
-<img src="https://img.shields.io/github/issues/YYGYLTY/PixelColorPicker?style=for-the-badge">
-
-<img src="https://img.shields.io/github/last-commit/YYGYLTY/PixelColorPicker?style=for-the-badge">
-
-</p>
-
-<p align="center">
-
-<img src="https://img.shields.io/github/downloads/YYGYLTY/PixelColorPicker/total?style=for-the-badge">
-
-<img src="https://img.shields.io/github/v/release/YYGYLTY/PixelColorPicker?style=for-the-badge">
-
-<img src="https://img.shields.io/github/repo-size/YYGYLTY/PixelColorPicker?style=for-the-badge">
-
-<img src="https://img.shields.io/github/languages/code-size/YYGYLTY/PixelColorPicker?style=for-the-badge">
-
-<img src="https://img.shields.io/github/languages/top/YYGYLTY/PixelColorPicker?style=for-the-badge">
-
+  <img src="https://img.shields.io/badge/Platform-Android-3DDC84?style=for-the-badge&logo=android&logoColor=white">
+  <img src="https://img.shields.io/badge/Language-Java-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white">
+  <img src="https://img.shields.io/badge/Version-1.0.1-8A2BE2?style=for-the-badge">
+  <img src="https://img.shields.io/badge/License-MIT-1E90FF?style=for-the-badge">
+  <br>
+  <img src="https://img.shields.io/github/stars/YYGYLTY/PixelColorPicker?style=for-the-badge">
+  <img src="https://img.shields.io/github/forks/YYGYLTY/PixelColorPicker?style=for-the-badge">
+  <img src="https://img.shields.io/github/v/release/YYGYLTY/PixelColorPicker?style=for-the-badge">
+  <img src="https://img.shields.io/github/downloads/YYGYLTY/PixelColorPicker/total?style=for-the-badge">
+  <br>
+  <img src="https://img.shields.io/badge/Pixel_Art-16%C3%9716-ff69b4?style=for-the-badge&logo=adobe&logoColor=white">
+  <img src="https://img.shields.io/badge/Made_with-%E2%9D%A4-red?style=for-the-badge">
+  <img src="https://img.shields.io/badge/Open_Source-%F0%9F%92%8E-lightgrey?style=for-the-badge">
 </p>
 
 ---
@@ -85,6 +60,7 @@
 - [⚡ Workflow](#-workflow)
 - [🛠 Technical Details](#-technical-details)
 - [🌍 Multi-language](#-multi-language)
+- [⭐ Star History](#-star-history)
 - [👨‍💻 Credits](#-credits)
 - [📄 License](#-license)
 
@@ -92,65 +68,47 @@
 
 # 🚀 Features
 
-## 🖼️ Image Selection
-
+### 🖼️ Image Selection
 - Select images from the gallery
 - Supports common image formats
 
----
-
-## ✂️ Free Crop
-
+### ✂️ Free Crop
 - Adjustable crop area
 - Smooth dragging
 - Faster crop performance (v1.0.1)
 
----
-
-## 🎨 Pixel Conversion
-
+### 🎨 Pixel Conversion
 - Convert images to 16×16 pixels
 - Preserve the main visual appearance
 - High-quality pixel sampling
 
----
-
-## 🌈 Palette Extraction
-
+### 🌈 Palette Extraction
 - Analyze all 256 pixels
 - Automatically extract colors
 - Display complete color information
 
----
-
-## 📋 Palette Code Export
-
+### 📋 Palette Code Export
 - Generate palette codes automatically
 - Copy 16-color columns with one tap
 - Greatly improves production efficiency
 
----
-
-## 🌍 Multi-language
-
+### 🌍 Multi-language
 Supported Languages:
 
-- 🇨🇳 简体中文
-- 🇺🇸 English
-- 🇯🇵 日本語
+| Language | Status |
+|-----------|--------|
+| 🇨🇳 简体中文 | ✅ |
+| 🇺🇸 English | ✅ |
+| 🇯🇵 日本語 | ✅ |
 
 ---
 
 # 📱 Screenshots
 
 <p align="center">
-
-<img src="assets/screenshot_main.jpg" width="260">
-
-<img src="assets/screenshot_crop.jpg" width="260">
-
-<img src="assets/screenshot_palette.jpg" width="260">
-
+  <img src="assets/screenshot_main.jpg" width="260">
+  <img src="assets/screenshot_crop.jpg" width="260">
+  <img src="assets/screenshot_palette.jpg" width="260">
 </p>
 
 ---
@@ -163,47 +121,32 @@ Coming Soon...
 
 # ⚡ Workflow
 
-### Traditional Workflow
-
-```
-Image
-   ↓
-Manual Color Picking
-   ↓
-Record Colors
-   ↓
-Arrange Palette
-   ↓
-Import into Game
+### 🐢 Traditional Workflow
 ```
 
-### PixelColorPicker Workflow
+Image → Manual Color Picking → Record Colors → Arrange Palette → Import into Game
 
 ```
-Image
-   ↓
-Automatic Analysis
-   ↓
-Generate 256 Colors
-   ↓
-Copy Palette Codes
-   ↓
-Done ✅
+
+### 🚀 PixelColorPicker Workflow
 ```
 
-PixelColorPicker significantly reduces repetitive operations and improves efficiency.
+Image → Automatic Analysis → Generate 256 Colors → Copy Palette Codes → Done ✅
+
+```
+
+> PixelColorPicker significantly reduces repetitive operations and improves efficiency.
 
 ---
 
 # 🛠 Technical Details
 
-- Java
-- Android SDK
-- Bitmap Processing
-- Pixel Sampling Algorithm
-- Palette Encoding
-- Protobuf
-- GZIP Compression
+| Technology | Description |
+|------------|-------------|
+| Language | Java |
+| Platform | Android SDK |
+| Image Processing | Bitmap, Pixel Sampling |
+| Compression | GZIP, Protobuf |
 
 ---
 
@@ -221,40 +164,27 @@ More languages may be added in future versions.
 
 ---
 
-# 🆕 What's New in v1.0.1
+# ⭐ Star History
 
-- ✨ Redesigned application interface
-- 🌍 Added multilingual support
-- ⚡ Improved image cropping performance
-- 🎨 Optimized overall user experience
+[![Star History Chart](https://api.star-history.com/svg?repos=YYGYLTY/PixelColorPicker&type=Date)](https://star-history.com/#YYGYLTY/PixelColorPicker&Date)
+
+If you like this project, please consider giving it a **Star ⭐** – it helps more people discover PixelColorPicker!
 
 ---
 
 # 👨‍💻 Credits
 
 ### Design & Development
-
 Astnote
 
 ### Core Algorithm Assistance
-
 ChatGPT
 
 ### Crop Component Assistance
-
 DeepSeek
 
 ### Icon Design
-
 豆包
-
----
-
-# ⭐ Star History
-
-If you like this project, please consider giving it a **Star ⭐**.
-
-It helps more people discover PixelColorPicker!
 
 ---
 
@@ -265,11 +195,7 @@ This project is licensed under the **MIT License**.
 ---
 
 <p align="center">
-
-Made with ❤️ for Android & Pixel Art
-
-<br><br>
-
-<b>PixelColorPicker v1.0.1</b>
-
+  Made with ❤️ for Android & Pixel Art
+  <br><br>
+  <b>PixelColorPicker v1.0.1</b>
 </p>
