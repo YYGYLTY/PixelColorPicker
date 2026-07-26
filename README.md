@@ -1,101 +1,147 @@
 <p align="center">
-  <img src="assets/PixelColorPicker-banner.png" width="700">
+  <img src="assets/PixelColorPicker-banner.png" width="800">
 </p>
 
-<h1 align="center">
-PixelColorPicker
-</h1>
+<h1 align="center">PixelColorPicker</h1>
 
 <p align="center">
-Android 像素化 / 色板码转换工具
+  Android Pixel Art & Palette Generator
 </p>
 
 <p align="center">
+一款专为 16×16 像素图片制作与色板码生成而设计的 Android 工具。
+</p>
 
-<img src="https://img.shields.io/badge/Platform-Android-green?style=flat-square&logo=android">
+<p align="center">
 
-<img src="https://img.shields.io/badge/Language-Java-orange?style=flat-square&logo=java">
+<img src="https://img.shields.io/badge/Platform-Android-3DDC84?style=for-the-badge&logo=android&logoColor=white">
 
-<img src="https://img.shields.io/badge/License-MIT-blue?style=flat-square">
+<img src="https://img.shields.io/badge/Language-Java-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white">
 
-<img src="https://img.shields.io/badge/Version-1.0.0-purple?style=flat-square">
+<img src="https://img.shields.io/badge/Version-v1.0.1-8A2BE2?style=for-the-badge">
+
+<img src="https://img.shields.io/badge/License-MIT-1E90FF?style=for-the-badge">
 
 </p>
 
+<p align="center">
+
+<img src="https://img.shields.io/github/stars/YYGYLTY/PixelColorPicker?style=for-the-badge">
+
+<img src="https://img.shields.io/github/forks/YYGYLTY/PixelColorPicker?style=for-the-badge">
+
+<img src="https://img.shields.io/github/issues/YYGYLTY/PixelColorPicker?style=for-the-badge">
+
+<img src="https://img.shields.io/github/last-commit/YYGYLTY/PixelColorPicker?style=for-the-badge">
+
+</p>
+
+<p align="center">
+
+<img src="https://img.shields.io/github/downloads/YYGYLTY/PixelColorPicker/total?style=for-the-badge">
+
+<img src="https://img.shields.io/github/v/release/YYGYLTY/PixelColorPicker?style=for-the-badge">
+
+<img src="https://img.shields.io/github/repo-size/YYGYLTY/PixelColorPicker?style=for-the-badge">
+
+<img src="https://img.shields.io/github/languages/code-size/YYGYLTY/PixelColorPicker?style=for-the-badge">
+
+<img src="https://img.shields.io/github/languages/top/YYGYLTY/PixelColorPicker?style=for-the-badge">
+
+</p>
 
 ---
 
-# ✨ 简介
+# ✨ Introduction
 
-PixelColorPicker 是一款专为 **16×16 像素图制作流程优化** 的 Android 图片处理工具。
+**PixelColorPicker** 是一款专门用于 **16×16 像素图片制作、颜色分析以及色板码生成** 的 Android 应用。
 
-本项目最初用于解决《像素射击》手游头像制作过程中，
-普通取色工具操作繁琐、颜色整理困难的问题。
+项目最初源于《像素射击》头像制作过程中繁琐的取色流程，希望通过自动化处理，大幅降低重复劳动，提高制作效率。
 
-它可以帮助用户：
+它能够帮助用户快速完成：
 
-- 将图片转换为 16×16 像素图
-- 自动分析 256 格像素颜色
-- 生成对应色板数据
-- 批量复制游戏所需色板码
-
+- 🖼️ 图片导入
+- ✂️ 图片裁剪
+- 🎨 16×16 像素化
+- 🌈 自动颜色提取
+- 📋 色板码生成
+- 📤 一键复制导出
 
 适用于：
 
-- 🎮 游戏像素头像制作
-- 🎨 像素艺术创作
+- 🎮 游戏头像制作
+- 🎨 Pixel Art 创作
 - 🌈 图片颜色分析
-
-
----
-
-# 🚀 功能特性
-
-
-## 🖼️ 图片选择
-
-- 从相册选择需要处理的图片
-- 支持常见图片格式
-
-
-## ✂️ 自定义裁剪
-
-- 自由调整裁剪区域
-- 精确选择需要转换的画面范围
-
-
-## 🎨 16×16 像素转换
-
-- 将图片转换为 16×16 像素规格
-- 自动分析每个像素颜色
-- 保留原图主要视觉特征
-
-
-## 🌈 256色色板生成
-
-- 自动提取像素颜色信息
-- 生成完整颜色排列
-- 快速查看每个像素对应颜色
-
-
-## 📋 色板码导出
-
-- 自动生成颜色数据
-- 支持批量复制纵列16格色板码
-- 无需手动记录大量颜色信息
-
+- 🧩 16×16 像素设计
 
 ---
 
-# 🎬 Demo Video
+# 📑 Table of Contents
 
-（视频制作完成后放置）
-
+- [✨ Introduction](#-introduction)
+- [🚀 Features](#-features)
+- [📱 Screenshots](#-screenshots)
+- [🎬 Demo Video](#-demo-video)
+- [⚡ Workflow](#-workflow)
+- [🛠 Technical Details](#-technical-details)
+- [🌍 Multi-language](#-multi-language)
+- [👨‍💻 Credits](#-credits)
+- [📄 License](#-license)
 
 ---
 
-# 📱 应用截图
+# 🚀 Features
 
+## 🖼️ Image Selection
+
+- Select images from the gallery
+- Supports common image formats
+
+---
+
+## ✂️ Free Crop
+
+- Adjustable crop area
+- Smooth dragging
+- Faster crop performance (v1.0.1)
+
+---
+
+## 🎨 Pixel Conversion
+
+- Convert images to 16×16 pixels
+- Preserve the main visual appearance
+- High-quality pixel sampling
+
+---
+
+## 🌈 Palette Extraction
+
+- Analyze all 256 pixels
+- Automatically extract colors
+- Display complete color information
+
+---
+
+## 📋 Palette Code Export
+
+- Generate palette codes automatically
+- Copy 16-color columns with one tap
+- Greatly improves production efficiency
+
+---
+
+## 🌍 Multi-language
+
+Supported Languages:
+
+- 🇨🇳 简体中文
+- 🇺🇸 English
+- 🇯🇵 日本語
+
+---
+
+# 📱 Screenshots
 
 <p align="center">
 
@@ -107,76 +153,123 @@ PixelColorPicker 是一款专为 **16×16 像素图制作流程优化** 的 Andr
 
 </p>
 
+---
+
+# 🎬 Demo Video
+
+Coming Soon...
 
 ---
 
-# ⚡ 为什么需要 PixelColorPicker？
+# ⚡ Workflow
 
-传统制作16×16像素头像：
-
-```
-图片
- ↓
-手动取色
- ↓
-记录颜色代码
- ↓
-整理色板
- ↓
-输入游戏
-```
-
-
-使用 PixelColorPicker：
+### Traditional Workflow
 
 ```
-图片
- ↓
-自动分析
- ↓
-生成256色数据
- ↓
-复制色板码
- ↓
-完成
+Image
+   ↓
+Manual Color Picking
+   ↓
+Record Colors
+   ↓
+Arrange Palette
+   ↓
+Import into Game
 ```
 
+### PixelColorPicker Workflow
 
-大幅减少重复操作，
-提高像素头像制作效率。
+```
+Image
+   ↓
+Automatic Analysis
+   ↓
+Generate 256 Colors
+   ↓
+Copy Palette Codes
+   ↓
+Done ✅
+```
 
+PixelColorPicker significantly reduces repetitive operations and improves efficiency.
 
 ---
 
-# 🛠️ 技术实现
+# 🛠 Technical Details
 
 - Java
 - Android SDK
-- Bitmap 图像处理
-- 像素采样算法
-- Protobuf 数据编码
-- GZIP 压缩
+- Bitmap Processing
+- Pixel Sampling Algorithm
+- Palette Encoding
+- Protobuf
+- GZIP Compression
 
+---
+
+# 🌍 Multi-language
+
+PixelColorPicker currently supports:
+
+| Language | Status |
+|-----------|--------|
+| 简体中文 | ✅ |
+| English | ✅ |
+| 日本語 | ✅ |
+
+More languages may be added in future versions.
+
+---
+
+# 🆕 What's New in v1.0.1
+
+- ✨ Redesigned application interface
+- 🌍 Added multilingual support
+- ⚡ Improved image cropping performance
+- 🎨 Optimized overall user experience
 
 ---
 
 # 👨‍💻 Credits
 
-- Design & Development: Astnote
-- Core Algorithm Assistance: ChatGPT
-- Crop Component Assistance: DeepSeek
-- Icon Design: 豆包
+### Design & Development
 
+Astnote
+
+### Core Algorithm Assistance
+
+ChatGPT
+
+### Crop Component Assistance
+
+DeepSeek
+
+### Icon Design
+
+豆包
+
+---
+
+# ⭐ Star History
+
+If you like this project, please consider giving it a **Star ⭐**.
+
+It helps more people discover PixelColorPicker!
 
 ---
 
 # 📄 License
 
-This project is licensed under the MIT License.
-
+This project is licensed under the **MIT License**.
 
 ---
 
 <p align="center">
+
 Made with ❤️ for Android & Pixel Art
+
+<br><br>
+
+<b>PixelColorPicker v1.0.1</b>
+
 </p>
