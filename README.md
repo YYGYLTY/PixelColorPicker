@@ -162,7 +162,7 @@ PixelColorPicker 是一款专为 **16×16 像素图制作流程优化** 的 Andr
 
 # 👨‍💻 Credits
 
-- Design & Development: Sylvaine
+- Design & Development: Astnote
 - Core Algorithm Assistance: ChatGPT
 - Crop Component Assistance: DeepSeek
 - Icon Design: 豆包

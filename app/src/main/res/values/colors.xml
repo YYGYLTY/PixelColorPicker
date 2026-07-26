@@ -1,18 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-
 <resources>
-
+    <!-- 原有 -->
     <color name="tianyi_blue">#66CCFF</color>
-
     <color name="tianyi_blue_dark">#3399FF</color>
+    <color name="app_background">#F5F6FA</color>
+    <color name="card_background">#FFFFFF</color>
 
-
-    <!-- 浅色背景 -->
-    <color name="app_background">#F3FAFF</color>
-
-
-    <!-- 浅色卡片 -->
-    <color name="card_background">#EAF7FF</color>
-
-
+    <!-- 按钮配色 -->
+    <color name="btn_import">#1ABC9C</color>
+    <color name="btn_export">#3498DB</color>
+    <color name="btn_extract">#F48FB1</color>
+    <color name="btn_copy">#2C3E50</color>
+    <color name="btn_expand">#2C3E50</color>
 </resources>

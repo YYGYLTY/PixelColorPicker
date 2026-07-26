@@ -1,263 +1,541 @@
 <?xml version="1.0" encoding="utf-8"?>
-
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-
     android:background="@color/app_background">
 
-
     <LinearLayout
-
         android:layout_width="match_parent"
-
         android:layout_height="wrap_content"
-
         android:orientation="vertical"
-
         android:padding="24dp">
 
-
-
+        <!-- 标题 -->
         <TextView
-
             android:layout_width="wrap_content"
-
             android:layout_height="wrap_content"
-
             android:text="🎨 PixelColorPicker"
-
             android:textSize="30sp"
-
             android:textStyle="bold"
-
-            android:textColor="?android:attr/textColorPrimary"/>
-
-
+            android:textColor="?android:textColorPrimary" />
 
         <TextView
-
             android:layout_width="wrap_content"
-
             android:layout_height="wrap_content"
+            android:text="@string/app_description"
+            android:textSize="15sp"
+            android:layout_marginTop="6dp"
+            android:textColor="?android:textColorSecondary" />
 
-            android:text="图片像素化 / 色板码转换工具"
-
-            android:textSize="16sp"
-
-            android:layout_marginTop="8dp"
-
-            android:textColor="?android:attr/textColorSecondary"/>
-
-
-
-
+        <View
+            android:layout_width="60dp"
+            android:layout_height="3dp"
+            android:layout_marginTop="16dp"
+            android:background="#66CCFF" />
 
         <!-- 使用说明 -->
-
         <androidx.cardview.widget.CardView
-
             android:layout_width="match_parent"
-
             android:layout_height="wrap_content"
-
-            android:layout_marginTop="24dp"
-
-            app:cardCornerRadius="24dp"
-
-            app:cardElevation="0dp"
-
-            app:cardBackgroundColor="@color/card_background">
-
+            android:layout_marginTop="20dp"
+            app:cardCornerRadius="20dp"
+            app:cardElevation="1dp"
+            app:cardBackgroundColor="@color/card_background"
+            app:strokeWidth="0.5dp"
+            app:strokeColor="#1ABC9C">
 
             <LinearLayout
-
                 android:layout_width="match_parent"
-
                 android:layout_height="wrap_content"
-
                 android:orientation="vertical"
-
                 android:padding="20dp">
 
-
                 <TextView
-
                     android:layout_width="wrap_content"
-
                     android:layout_height="wrap_content"
-
                     android:text="📖 使用说明"
-
                     android:textSize="20sp"
+                    android:textStyle="bold"
+                    android:textColor="?android:textColorPrimary" />
 
-                    android:textStyle="bold"/>
-
-
-
-                <TextView
-
+                <LinearLayout
                     android:layout_width="match_parent"
-
                     android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:layout_marginTop="14dp">
 
-                    android:layout_marginTop="16dp"
-
-                    android:text="① 选择图片&#10;&#10;从相册选择需要分析的图片。&#10;&#10;② 裁剪图片&#10;&#10;拖动四角调整裁剪区域，自定义裁剪范围。&#10;&#10;③ 像素转换&#10;&#10;裁剪完成后，一键转换16×16规格像素画。&#10;&#10;④ 导出图片&#10;&#10;保存生成的16×16规格像素图片。&#10;&#10;⑤ 自动取色&#10;&#10;批量解析图片像素，提取颜色信息。&#10;&#10;⑥ 颜色面板&#10;&#10;查看16×16颜色值，点击色块复制色板码。&#10;&#10;⑦ 色彩编码&#10;&#10;生成256色压缩码，支持纵列编码复制。"
-
-                    android:textSize="16sp"
-
-                    android:lineSpacingExtra="8dp"/>
-
-
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginBottom="10dp">
+                        <TextView
+                            android:layout_width="28dp"
+                            android:layout_height="28dp"
+                            android:gravity="center"
+                            android:text="①"
+                            android:textSize="14sp"
+                            android:textColor="#1ABC9C"
+                            android:textStyle="bold" />
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="选择图片 — 从相册选择需要分析的图片"
+                            android:textSize="15sp"
+                            android:lineSpacingExtra="3dp"
+                            android:textColor="?android:textColorPrimary" />
+                    </LinearLayout>
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginBottom="10dp">
+                        <TextView
+                            android:layout_width="28dp"
+                            android:layout_height="28dp"
+                            android:gravity="center"
+                            android:text="②"
+                            android:textSize="14sp"
+                            android:textColor="#3498DB"
+                            android:textStyle="bold" />
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="裁剪图片 — 拖动四角调整裁剪区域"
+                            android:textSize="15sp"
+                            android:lineSpacingExtra="3dp"
+                            android:textColor="?android:textColorPrimary" />
+                    </LinearLayout>
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginBottom="10dp">
+                        <TextView
+                            android:layout_width="28dp"
+                            android:layout_height="28dp"
+                            android:gravity="center"
+                            android:text="③"
+                            android:textSize="14sp"
+                            android:textColor="#9B59B6"
+                            android:textStyle="bold" />
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="像素转换 — 一键转换 16×16 像素画"
+                            android:textSize="15sp"
+                            android:lineSpacingExtra="3dp"
+                            android:textColor="?android:textColorPrimary" />
+                    </LinearLayout>
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginBottom="10dp">
+                        <TextView
+                            android:layout_width="28dp"
+                            android:layout_height="28dp"
+                            android:gravity="center"
+                            android:text="④"
+                            android:textSize="14sp"
+                            android:textColor="#E67E22"
+                            android:textStyle="bold" />
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="导出图片 — 保存像素图片到相册"
+                            android:textSize="15sp"
+                            android:lineSpacingExtra="3dp"
+                            android:textColor="?android:textColorPrimary" />
+                    </LinearLayout>
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginBottom="10dp">
+                        <TextView
+                            android:layout_width="28dp"
+                            android:layout_height="28dp"
+                            android:gravity="center"
+                            android:text="⑤"
+                            android:textSize="14sp"
+                            android:textColor="#E74C3C"
+                            android:textStyle="bold" />
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="自动取色 — 批量解析图片像素颜色"
+                            android:textSize="15sp"
+                            android:lineSpacingExtra="3dp"
+                            android:textColor="?android:textColorPrimary" />
+                    </LinearLayout>
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginBottom="10dp">
+                        <TextView
+                            android:layout_width="28dp"
+                            android:layout_height="28dp"
+                            android:gravity="center"
+                            android:text="⑥"
+                            android:textSize="14sp"
+                            android:textColor="#2ECC71"
+                            android:textStyle="bold" />
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="颜色面板 — 点击色块复制颜色值"
+                            android:textSize="15sp"
+                            android:lineSpacingExtra="3dp"
+                            android:textColor="?android:textColorPrimary" />
+                    </LinearLayout>
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+                        <TextView
+                            android:layout_width="28dp"
+                            android:layout_height="28dp"
+                            android:gravity="center"
+                            android:text="⑦"
+                            android:textSize="14sp"
+                            android:textColor="#F39C12"
+                            android:textStyle="bold" />
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="色彩编码 — 生成 256 色压缩码"
+                            android:textSize="15sp"
+                            android:lineSpacingExtra="3dp"
+                            android:textColor="?android:textColorPrimary" />
+                    </LinearLayout>
+                </LinearLayout>
             </LinearLayout>
-
-
         </androidx.cardview.widget.CardView>
-
-
-
-
-
-
 
         <!-- 关于软件 -->
-
         <androidx.cardview.widget.CardView
-
             android:layout_width="match_parent"
-
             android:layout_height="wrap_content"
-
             android:layout_marginTop="16dp"
-
-            app:cardCornerRadius="24dp"
-
-            app:cardElevation="0dp"
-
+            app:cardCornerRadius="20dp"
+            app:cardElevation="1dp"
             app:cardBackgroundColor="@color/card_background">
 
-
             <LinearLayout
-
                 android:layout_width="match_parent"
-
                 android:layout_height="wrap_content"
-
                 android:orientation="vertical"
-
                 android:padding="20dp">
 
-
-
-                <TextView
-
-                    android:layout_width="wrap_content"
-
-                    android:layout_height="wrap_content"
-
-                    android:text="✨ 关于 PixelColorPicker"
-
-                    android:textSize="20sp"
-
-                    android:textStyle="bold"/>
-
-
-
-                <TextView
-
+                <LinearLayout
                     android:layout_width="match_parent"
-
                     android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="✨ 关于"
+                        android:textSize="20sp"
+                        android:textStyle="bold"
+                        android:textColor="?android:textColorPrimary" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="v1.0.1"
+                        android:textSize="15sp"
+                        android:textColor="?android:textColorSecondary"
+                        android:layout_marginStart="8dp" />
+                </LinearLayout>
 
-                    android:layout_marginTop="16dp"
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp"
+                    android:text="PixelColorPicker 是一个简单易用的图片颜色分析工具。最初为了方便提取图片像素颜色而开发，后续加入了裁剪、颜色压缩、调色板导出等功能。\n\n希望这个小工具能帮助喜欢像素艺术、UI 设计、绘画和开发的人。"
+                    android:textSize="15sp"
+                    android:lineSpacingExtra="6dp"
+                    android:textColor="?android:textColorPrimary" />
 
-                    android:text="Version 1.0.0&#10;&#10;PixelColorPicker 是一个简单易用的图片颜色分析工具。&#10;&#10;最初只是为了方便提取图片像素颜色，后来逐渐加入了裁剪、颜色压缩、调色板导出等功能。&#10;&#10;希望这个小工具能帮助喜欢像素艺术、UI设计、绘画和开发的人。&#10;&#10;感谢你的使用 ∞ ₍ᐢ..ᐢ₎♡。"
-
-                    android:textSize="16sp"
-
-                    android:lineSpacingExtra="8dp"/>
-
-
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="感谢你的使用 ∞ ₍ᐢ..ᐢ₎♡"
+                    android:textSize="15sp"
+                    android:textColor="?android:textColorPrimary" />
             </LinearLayout>
-
-
         </androidx.cardview.widget.CardView>
-
-
-
-
-
-
 
         <!-- 贡献者 -->
-
         <androidx.cardview.widget.CardView
-
             android:layout_width="match_parent"
-
             android:layout_height="wrap_content"
-
             android:layout_marginTop="16dp"
-
-            app:cardCornerRadius="24dp"
-
-            app:cardElevation="0dp"
-
+            app:cardCornerRadius="20dp"
+            app:cardElevation="1dp"
             app:cardBackgroundColor="@color/card_background">
 
-
             <LinearLayout
-
                 android:layout_width="match_parent"
-
                 android:layout_height="wrap_content"
-
                 android:orientation="vertical"
-
                 android:padding="20dp">
 
-
                 <TextView
-
                     android:layout_width="wrap_content"
-
                     android:layout_height="wrap_content"
-
-                    android:text="🤝 贡献者介绍"
-
+                    android:text="🤝 贡献者"
                     android:textSize="20sp"
+                    android:textStyle="bold"
+                    android:textColor="?android:textColorPrimary" />
 
-                    android:textStyle="bold"/>
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:orientation="horizontal"
+                    android:gravity="center">
 
+                    <!-- Astnote -->
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical"
+                        android:gravity="center"
+                        android:padding="8dp">
+                        <androidx.cardview.widget.CardView
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            app:cardCornerRadius="24dp"
+                            app:cardElevation="0dp"
+                            app:cardBackgroundColor="@android:color/transparent">
+                            <ImageView
+                                android:layout_width="match_parent"
+                                android:layout_height="match_parent"
+                                android:src="@drawable/avatar_astnote"
+                                android:scaleType="centerCrop" />
+                        </androidx.cardview.widget.CardView>
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:text="Astnote"
+                            android:textSize="12sp"
+                            android:textStyle="bold"
+                            android:singleLine="true"
+                            android:ellipsize="end"
+                            android:textColor="?android:textColorPrimary" />
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="设计开发"
+                            android:textSize="12sp"
+                            android:textColor="?android:textColorSecondary" />
+                    </LinearLayout>
 
+                    <!-- ChatGPT -->
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical"
+                        android:gravity="center"
+                        android:padding="8dp">
+                        <androidx.cardview.widget.CardView
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            app:cardCornerRadius="24dp"
+                            app:cardElevation="0dp"
+                            app:cardBackgroundColor="@android:color/transparent">
+                            <ImageView
+                                android:layout_width="match_parent"
+                                android:layout_height="match_parent"
+                                android:src="@drawable/avatar_chatgpt"
+                                android:scaleType="centerCrop" />
+                        </androidx.cardview.widget.CardView>
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:text="ChatGPT"
+                            android:textSize="12sp"
+                            android:textStyle="bold"
+                            android:singleLine="true"
+                            android:ellipsize="end"
+                            android:textColor="?android:textColorPrimary" />
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="核心逻辑"
+                            android:textSize="12sp"
+                            android:textColor="?android:textColorSecondary" />
+                    </LinearLayout>
+
+                    <!-- DeepSeek -->
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical"
+                        android:gravity="center"
+                        android:padding="8dp">
+                        <androidx.cardview.widget.CardView
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            app:cardCornerRadius="24dp"
+                            app:cardElevation="0dp"
+                            app:cardBackgroundColor="@android:color/transparent">
+                            <ImageView
+                                android:layout_width="match_parent"
+                                android:layout_height="match_parent"
+                                android:src="@drawable/avatar_deepseek"
+                                android:scaleType="centerCrop" />
+                        </androidx.cardview.widget.CardView>
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:text="DeepSeek"
+                            android:textSize="12sp"
+                            android:textStyle="bold"
+                            android:singleLine="true"
+                            android:ellipsize="end"
+                            android:textColor="?android:textColorPrimary" />
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="代码完善"
+                            android:textSize="12sp"
+                            android:textColor="?android:textColorSecondary" />
+                    </LinearLayout>
+
+                    <!-- 豆包 -->
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical"
+                        android:gravity="center"
+                        android:padding="8dp">
+                        <androidx.cardview.widget.CardView
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            app:cardCornerRadius="24dp"
+                            app:cardElevation="0dp"
+                            app:cardBackgroundColor="@android:color/transparent">
+                            <ImageView
+                                android:layout_width="match_parent"
+                                android:layout_height="match_parent"
+                                android:src="@drawable/avatar_doubao"
+                                android:scaleType="centerCrop" />
+                        </androidx.cardview.widget.CardView>
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:text="豆包"
+                            android:textSize="12sp"
+                            android:textStyle="bold"
+                            android:singleLine="true"
+                            android:ellipsize="end"
+                            android:textColor="?android:textColorPrimary" />
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="图标绘制"
+                            android:textSize="12sp"
+                            android:textColor="?android:textColorSecondary" />
+                    </LinearLayout>
+                </LinearLayout>
 
                 <TextView
-
                     android:layout_width="match_parent"
-
                     android:layout_height="wrap_content"
-
                     android:layout_marginTop="16dp"
-
-                    android:text="· 设计&amp;构建：Sylvaine&#10;&#10;· 核心逻辑：ChatGPT&#10;&#10;· 裁剪组件：DeepSeek&#10;&#10;· 图标绘制：豆包&#10;&#10;Made with Android ❤️"
-
-                    android:textSize="16sp"
-
-                    android:lineSpacingExtra="8dp"/>
-
-
+                    android:text="Made with Android ❤️"
+                    android:textSize="14sp"
+                    android:gravity="center"
+                    android:textColor="?android:textColorSecondary" />
             </LinearLayout>
-
-
         </androidx.cardview.widget.CardView>
 
+        <!-- 支持作者 -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            app:cardCornerRadius="20dp"
+            app:cardElevation="1dp"
+            app:cardBackgroundColor="@color/card_background">
 
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="20dp">
 
+                <TextView
+                    android:id="@+id/supportToggle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="☕ 支持作者"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:textColor="?android:textColorPrimary"
+                    android:gravity="center_vertical"
+                    android:padding="8dp"
+                    android:background="?attr/selectableItemBackground"
+                    android:clickable="true"
+                    android:focusable="true" />
 
+                <LinearLayout
+                    android:id="@+id/rewardLayout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:gravity="center"
+                    android:visibility="gone"
+                    android:layout_marginTop="12dp">
+
+                    <ImageView
+                        android:layout_width="200dp"
+                        android:layout_height="200dp"
+                        android:src="@drawable/wechat_reward"
+                        android:scaleType="fitCenter"
+                        android:contentDescription="微信赞赏码" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="微信扫一扫，请我喝杯奶茶～"
+                        android:textSize="14sp"
+                        android:textColor="?android:textColorSecondary" />
+                </LinearLayout>
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="32dp" />
     </LinearLayout>
-
-
 </ScrollView>

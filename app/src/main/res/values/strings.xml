@@ -1,5 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">PixelColorPicker</string>
+    <string name="app_description">图片像素化/色板码转换器</string>
+    <string name="click_import">点击导入图片</string>
+    <string name="import_image">导入图片</string>
+    <string name="export_image">导出图片</string>
+    <string name="create_pixel">生成 16×16 像素画</string>
+    <string name="extract_palette">提取颜色色板</string>
+    <string name="current_palette">🎨 当前16×16色板（点击复制）</string>
+    <string name="copy_palette">复制完整256色板码</string>
+    <string name="expand_palette">展开分列压缩色板码</string>
 
+    <!-- Toast 提示 -->
+    <string name="toast_import_image_first">请先导入图片</string>
+    <string name="toast_generate_16x16_first">请先生成16×16像素画</string>
+    <string name="toast_generate_pixel_art_first">请先生成像素画</string>
+    <string name="toast_palette_copied">游戏色板码已复制</string>
+
+    <!-- 语言选择 -->
+    <string name="select_language">选择语言</string>
+    <string name="lang_chinese">中文</string>
+    <string name="lang_english">English</string>
+    <string name="lang_japanese">日本語</string>
 </resources>

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">PixelColorPicker</string>
+    <string name="app_description">画像ピクセル化 / パレットコード変換</string>
+    <string name="click_import">タップして画像を読み込む</string>
+    <string name="import_image">画像を読み込む</string>
+    <string name="export_image">画像を書き出す</string>
+    <string name="create_pixel">16×16ドット絵を生成</string>
+    <string name="extract_palette">カラーパレットを抽出</string>
+    <string name="current_palette">🎨 現在の16×16パレット（タップでコピー）</string>
+    <string name="copy_palette">256色パレットコードをコピー</string>
+    <string name="expand_palette">列圧縮コードを展開</string>
+
+    <!-- Toast メッセージ -->
+    <string name="toast_import_image_first">最初に画像を読み込んでください</string>
+    <string name="toast_generate_16x16_first">最初に16×16のドット絵を生成してください</string>
+    <string name="toast_generate_pixel_art_first">最初にドット絵を生成してください</string>
+    <string name="toast_palette_copied">パレットコードをコピーしました</string>
+
+    <!-- 言語選択 -->
+    <string name="select_language">言語を選択</string>
+    <string name="lang_chinese">中文</string>
+    <string name="lang_english">English</string>
+    <string name="lang_japanese">日本語</string>
+</resources>

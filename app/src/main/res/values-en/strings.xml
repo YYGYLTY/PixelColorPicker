@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">PixelColorPicker</string>
+    <string name="app_description">Image pixelization / Palette code converter</string>
+    <string name="click_import">Tap to import image</string>
+    <string name="import_image">Import Image</string>
+    <string name="export_image">Export Image</string>
+    <string name="create_pixel">Generate 16×16 Pixel Art</string>
+    <string name="extract_palette">Extract Color Palette</string>
+    <string name="current_palette">🎨 Current 16×16 Palette (tap to copy)</string>
+    <string name="copy_palette">Copy Full 256-Color Code</string>
+    <string name="expand_palette">Expand Column Compression Code</string>
+
+    <!-- Toast messages -->
+    <string name="toast_import_image_first">Please import an image first</string>
+    <string name="toast_generate_16x16_first">Please generate 16×16 pixel art first</string>
+    <string name="toast_generate_pixel_art_first">Please generate pixel art first</string>
+    <string name="toast_palette_copied">Palette code copied</string>
+
+    <!-- Language selection -->
+    <string name="select_language">Select Language</string>
+    <string name="lang_chinese">中文</string>
+    <string name="lang_english">English</string>
+    <string name="lang_japanese">日本語</string>
+</resources>

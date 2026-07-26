@@ -8,130 +8,65 @@ import android.content.Intent;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import java.io.File;
+import java.io.FileOutputStream;
 
 public class CropActivity extends AppCompatActivity {
-
-
     private CropImageView cropImageView;
-
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-
         super.onCreate(savedInstanceState);
-
         setContentView(R.layout.activity_crop);
 
+        cropImageView = findViewById(R.id.cropImageView);
 
-
-        cropImageView =
-                findViewById(R.id.cropImageView);
-
-
-
-        String uriString =
-                getIntent().getStringExtra("image");
-
-
-        if(uriString != null){
-
-
-            Uri uri =
-                    Uri.parse(uriString);
-
-
+        String uriString = getIntent().getStringExtra("image");
+        if (uriString != null) {
+            Uri uri = Uri.parse(uriString);
             try {
+                BitmapFactory.Options options = new BitmapFactory.Options();
+                options.inPreferredConfig = Bitmap.Config.ARGB_8888;
 
+                options.inJustDecodeBounds = true;
+                BitmapFactory.decodeStream(getContentResolver().openInputStream(uri), null, options);
 
-                Bitmap bitmap =
-                        BitmapFactory
-                                .decodeStream(
-                                        getContentResolver()
-                                                .openInputStream(uri)
-                                );
+                int width = options.outWidth;
+                int height = options.outHeight;
 
+                int sample = 1;
+                while (width / sample > 2000 || height / sample > 2000) {
+                    sample *= 2;
+                }
 
-                cropImageView
-                        .setImageBitmap(bitmap);
+                options.inJustDecodeBounds = false;
+                options.inSampleSize = sample;
 
-
-            }catch(Exception e){
-
+                Bitmap bitmap = BitmapFactory.decodeStream(getContentResolver().openInputStream(uri), null, options);
+                cropImageView.setImageBitmap(bitmap);
+            } catch (Exception e) {
                 e.printStackTrace();
-
             }
-
         }
 
+        findViewById(R.id.confirmCrop).setOnClickListener(v -> {
+            Bitmap result = cropImageView.getCropBitmap();
+            if (result == null) return;
 
+            File file = new File(getExternalCacheDir(), "crop.webp");
+            try (FileOutputStream fos = new FileOutputStream(file)) {
+                // 改用 WEBP 有损压缩，quality=95，速度比 LOSSLESS 快很多
+                result.compress(Bitmap.CompressFormat.JPEG, 95, fos);
+                fos.flush();
+            } catch (Exception e) {
+                e.printStackTrace();
+                return;
+            }
 
-        findViewById(R.id.confirmCrop)
-                .setOnClickListener(v -> {
-
-
-                    Bitmap result =
-                            cropImageView
-                                    .getCropBitmap();
-
-
-
-                    // 临时保存到缓存
-
-                    String path =
-                            getExternalCacheDir()
-                                    .getAbsolutePath()
-                            + "/crop.png";
-
-
-
-                    try{
-
-
-                        java.io.FileOutputStream fos =
-                                new java.io.FileOutputStream(path);
-
-
-                        result.compress(
-                                Bitmap.CompressFormat.PNG,
-                                100,
-                                fos
-                        );
-
-
-                        fos.close();
-
-
-
-                        Intent intent =
-                                new Intent();
-
-
-                        intent.putExtra(
-                                "cropPath",
-                                path
-                        );
-
-
-                        setResult(
-                                RESULT_OK,
-                                intent
-                        );
-
-
-                        finish();
-
-
-                    }catch(Exception e){
-
-                        e.printStackTrace();
-
-                    }
-
-
-                });
-
-
+            Intent intent = new Intent();
+            intent.putExtra("cropPath", file.getAbsolutePath());
+            setResult(RESULT_OK, intent);
+            finish();
+        });
     }
-
-
 }

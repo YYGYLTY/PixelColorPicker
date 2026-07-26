@@ -6,33 +6,39 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Matrix;
 import android.graphics.Paint;
+import android.graphics.PointF;
 import android.graphics.RectF;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
+import android.view.ScaleGestureDetector;
 import android.view.View;
 
-/**
- * 正方形图片裁剪控件，仿微信/系统相册体验。
- * 用法：在布局中直接使用，调用 setImageBitmap 设置图片，getCropBitmap 获取裁剪结果。
- */
 public class CropImageView extends View {
 
     private static final float CORNER_TOUCH_RADIUS_DP = 28f;
     private static final float MIN_CROP_SIZE_DP = 80f;
+
     private float cornerTouchRadius;
     private float minCropSize;
 
     private Bitmap sourceBitmap;
-    private Matrix imageMatrix = new Matrix();
-    private RectF cropRect = new RectF();
-    private RectF imageRect = new RectF();
+
+    private final Matrix imageMatrix = new Matrix();
+    private final Matrix inverseMatrix = new Matrix();
+
+    private final RectF cropRect = new RectF();
+    private final RectF imageRect = new RectF();
+
+    private final float[] matrixValues = new float[9];
 
     private Paint bitmapPaint;
     private Paint dimPaint;
     private Paint borderPaint;
     private Paint cornerPaint;
 
-    private int viewWidth, viewHeight;
+    private int viewWidth;
+    private int viewHeight;
+
     private boolean initialized;
 
     private static final int MODE_NONE = 0;
@@ -43,11 +49,20 @@ public class CropImageView extends View {
 
     private int currentMode = MODE_NONE;
     private int activeCorner = -1;
-    private float anchorX, anchorY;
 
-    private float lastX, lastY;
-    private float lastXImg, lastYImg;
+    private float anchorX;
+    private float anchorY;
+
+    private float lastX;
+    private float lastY;
+
+    private float lastXImg;
+    private float lastYImg;
+
     private float startDist;
+    // 缩放焦点
+    private final PointF scaleFocus = new PointF();
+
     private int activePointerId = -1;
 
     public CropImageView(Context context) {
@@ -67,10 +82,12 @@ public class CropImageView extends View {
         bitmapPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
         dimPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         dimPaint.setColor(0xBB000000);
+
         borderPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         borderPaint.setColor(Color.WHITE);
         borderPaint.setStyle(Paint.Style.STROKE);
         borderPaint.setStrokeWidth(2f * density);
+
         cornerPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         cornerPaint.setColor(Color.WHITE);
         cornerPaint.setStyle(Paint.Style.STROKE);
@@ -78,7 +95,7 @@ public class CropImageView extends View {
     }
 
     public void setImageBitmap(Bitmap bitmap) {
-        this.sourceBitmap = bitmap;
+        sourceBitmap = bitmap;
         initialized = false;
         if (viewWidth > 0 && viewHeight > 0 && bitmap != null) {
             setupInitial();
@@ -89,20 +106,26 @@ public class CropImageView extends View {
 
     public Bitmap getCropBitmap() {
         if (sourceBitmap == null || cropRect.isEmpty()) return null;
-        Matrix inverse = new Matrix();
-        imageMatrix.invert(inverse);
+
+        imageMatrix.invert(inverseMatrix);
         RectF srcRect = new RectF(cropRect);
-        inverse.mapRect(srcRect);
-        int left = Math.max(0, Math.round(srcRect.left));
-        int top = Math.max(0, Math.round(srcRect.top));
-        int right = Math.min(sourceBitmap.getWidth(), Math.round(srcRect.right));
-        int bottom = Math.min(sourceBitmap.getHeight(), Math.round(srcRect.bottom));
+        inverseMatrix.mapRect(srcRect);
+
+        int left = Math.max(0, (int) srcRect.left);
+        int top = Math.max(0, (int) srcRect.top);
+        int right = Math.min(sourceBitmap.getWidth(), (int) srcRect.right);
+        int bottom = Math.min(sourceBitmap.getHeight(), (int) srcRect.bottom);
+
         int width = right - left;
         int height = bottom - top;
         int size = Math.min(width, height);
         if (size <= 0) return null;
-        left = Math.min(left, sourceBitmap.getWidth() - size);
-        top = Math.min(top, sourceBitmap.getHeight() - size);
+
+        if (left + size > sourceBitmap.getWidth())
+            left = sourceBitmap.getWidth() - size;
+        if (top + size > sourceBitmap.getHeight())
+            top = sourceBitmap.getHeight() - size;
+
         return Bitmap.createBitmap(sourceBitmap, left, top, size, size);
     }
 
@@ -120,14 +143,13 @@ public class CropImageView extends View {
     private void setupInitial() {
         int bmW = sourceBitmap.getWidth();
         int bmH = sourceBitmap.getHeight();
+
         float scale = (float) viewWidth / bmW;
         float scaledH = bmH * scale;
 
         float cropSize = Math.min(viewWidth, Math.min(viewHeight, scaledH));
         if (cropSize < minCropSize) cropSize = minCropSize;
-        if (scaledH < cropSize) {
-            scale = cropSize / bmH;
-        }
+        if (scaledH < cropSize) scale = cropSize / bmH;
 
         imageMatrix.reset();
         imageMatrix.setScale(scale, scale);
@@ -137,6 +159,7 @@ public class CropImageView extends View {
 
         float cropLeft = (viewWidth - cropSize) / 2f;
         float cropTop = (viewHeight - cropSize) / 2f;
+
         cropRect.set(cropLeft, cropTop, cropLeft + cropSize, cropTop + cropSize);
 
         float dx = cropRect.centerX() - imgW / 2f;
@@ -166,8 +189,12 @@ public class CropImageView extends View {
 
         canvas.drawRect(cropRect, borderPaint);
 
-        float l = cropRect.left, t = cropRect.top, r = cropRect.right, b = cropRect.bottom;
+        float l = cropRect.left;
+        float t = cropRect.top;
+        float r = cropRect.right;
+        float b = cropRect.bottom;
         float len = cornerTouchRadius;
+
         canvas.drawLine(l, t, l + len, t, cornerPaint);
         canvas.drawLine(l, t, l, t + len, cornerPaint);
         canvas.drawLine(r, t, r - len, t, cornerPaint);
@@ -181,7 +208,6 @@ public class CropImageView extends View {
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         int action = event.getActionMasked();
-
         switch (action) {
             case MotionEvent.ACTION_DOWN:
                 activePointerId = event.getPointerId(0);
@@ -204,9 +230,15 @@ public class CropImageView extends View {
                 return true;
 
             case MotionEvent.ACTION_POINTER_DOWN:
-                // 第二根手指按下，切换到图片缩放模式（无论手指位置）
-                currentMode = MODE_SCALE_IMAGE;
-                startDist = spacing(event);
+                if (event.getPointerCount() >= 2) {
+                    currentMode = MODE_SCALE_IMAGE;
+                    startDist = spacing(event);
+                    // 记录初始双指中点
+                    scaleFocus.set(
+                            (event.getX(0) + event.getX(1)) / 2f,
+                            (event.getY(0) + event.getY(1)) / 2f
+                    );
+                }
                 break;
 
             case MotionEvent.ACTION_MOVE:
@@ -234,11 +266,18 @@ public class CropImageView extends View {
                         lastYImg = event.getY(index);
                     }
                 } else if (currentMode == MODE_SCALE_IMAGE) {
-                    float newDist = spacing(event);
-                    if (startDist > 5f) {
-                        float scaleFactor = newDist / startDist;
-                        scaleImage(scaleFactor);
-                        startDist = newDist;
+                    if (event.getPointerCount() >= 2) {
+                        float newDist = spacing(event);
+                        if (startDist > 5f) {
+                            float factor = newDist / startDist;
+                            // 更新缩放焦点为当前双指中点
+                            scaleFocus.set(
+                                    (event.getX(0) + event.getX(1)) / 2f,
+                                    (event.getY(0) + event.getY(1)) / 2f
+                            );
+                            scaleImage(factor, scaleFocus.x, scaleFocus.y);
+                            startDist = newDist;
+                        }
                     }
                 }
                 break;
@@ -247,32 +286,6 @@ public class CropImageView extends View {
             case MotionEvent.ACTION_CANCEL:
                 currentMode = MODE_NONE;
                 activePointerId = -1;
-                break;
-
-            case MotionEvent.ACTION_POINTER_UP:
-                int pointerIndex = event.getActionIndex();
-                int pointerId = event.getPointerId(pointerIndex);
-                if (currentMode == MODE_SCALE_IMAGE) {
-                    currentMode = MODE_NONE;
-                } else if (pointerId == activePointerId) {
-                    int newIndex = pointerIndex == 0 ? 1 : 0;
-                    if (event.getPointerCount() > 1) {
-                        activePointerId = event.getPointerId(newIndex);
-                        float nx = event.getX(newIndex);
-                        float ny = event.getY(newIndex);
-                        if (currentMode == MODE_MOVE_CROP) {
-                            lastX = nx;
-                            lastY = ny;
-                        } else if (currentMode == MODE_MOVE_IMAGE) {
-                            lastXImg = nx;
-                            lastYImg = ny;
-                        } else if (currentMode == MODE_SCALE_CROP) {
-                            currentMode = MODE_NONE;
-                        }
-                    } else {
-                        currentMode = MODE_NONE;
-                    }
-                }
                 break;
         }
         return true;
@@ -296,88 +309,53 @@ public class CropImageView extends View {
         }
     }
 
-    private float spacing(MotionEvent event) {
-        if (event.getPointerCount() < 2) return 0;
-        float x = event.getX(0) - event.getX(1);
-        float y = event.getY(0) - event.getY(1);
+    private float spacing(MotionEvent e) {
+        if (e.getPointerCount() < 2) return 0;
+        float x = e.getX(0) - e.getX(1);
+        float y = e.getY(0) - e.getY(1);
         return (float) Math.hypot(x, y);
     }
 
-    private float getCurrentScale() {
-        float[] values = new float[9];
-        imageMatrix.getValues(values);
-        return values[Matrix.MSCALE_X];
-    }
-
     private void moveCrop(float dx, float dy) {
-        RectF newCrop = new RectF(cropRect);
-        newCrop.offset(dx, dy);
-        clampCropInView(newCrop);
-        clampCropInsideImage(newCrop);
-        cropRect.set(newCrop);
+        RectF r = new RectF(cropRect);
+        r.offset(dx, dy);
+        clampCropInView(r);
+        clampCropInsideImage(r);
+        cropRect.set(r);
         invalidate();
     }
 
-    /**
-     * 拖动角调整裁剪框（始终保持正方形，且不超出屏幕和图片）
-     */
-    private void dragCorner(float fingerX, float fingerY) {
-        // 根据锚点和手指位置计算期望边长
-        float side = Math.max(Math.abs(fingerX - anchorX), Math.abs(fingerY - anchorY));
+    private void dragCorner(float x, float y) {
+        float side = Math.max(Math.abs(x - anchorX), Math.abs(y - anchorY));
         if (side < minCropSize) side = minCropSize;
-
-        // 计算在屏幕和图片双重限制下允许的最大边长
-        float maxSide = getMaxSquareSide(anchorX, anchorY, imageRect, viewWidth, viewHeight);
-        if (side > maxSide) side = maxSide;
-        if (side < minCropSize) side = minCropSize;
-
-        // 构建正方形矩形
-        RectF newCrop = buildSquareFromAnchor(anchorX, anchorY, side);
-
-        // 强制限制在屏幕内（防御性，理论上已满足）
-        clampCropInView(newCrop);
-
-        cropRect.set(newCrop);
+        float max = getMaxSquareSide();
+        if (side > max) side = max;
+        RectF r = buildSquareFromAnchor(anchorX, anchorY, side);
+        clampCropInView(r);
+        cropRect.set(r);
         invalidate();
     }
 
-    /**
-     * 计算以(anchorX, anchorY)为固定角时，正方形能取到的最大边长，
-     * 该正方形必须完全位于图片矩形和View屏幕内。
-     */
-    private float getMaxSquareSide(float anchorX, float anchorY, RectF imgBounds, int vw, int vh) {
-        float maxSide = Float.MAX_VALUE;
-
+    private float getMaxSquareSide() {
+        float max = Float.MAX_VALUE;
         switch (activeCorner) {
-            case 0: // 拖左上，固定右下，正方形向左上扩展
-                maxSide = Math.min(maxSide, anchorX - Math.max(imgBounds.left, 0));
-                maxSide = Math.min(maxSide, anchorY - Math.max(imgBounds.top, 0));
-                break;
-            case 1: // 拖右上，固定左下，正方形向右上扩展
-                maxSide = Math.min(maxSide, Math.min(imgBounds.right, vw) - anchorX);
-                maxSide = Math.min(maxSide, anchorY - Math.max(imgBounds.top, 0));
-                break;
-            case 2: // 拖左下，固定右上，正方形向左下扩展
-                maxSide = Math.min(maxSide, anchorX - Math.max(imgBounds.left, 0));
-                maxSide = Math.min(maxSide, Math.min(imgBounds.bottom, vh) - anchorY);
-                break;
-            case 3: // 拖右下，固定左上，正方形向右下扩展
-                maxSide = Math.min(maxSide, Math.min(imgBounds.right, vw) - anchorX);
-                maxSide = Math.min(maxSide, Math.min(imgBounds.bottom, vh) - anchorY);
-                break;
+            case 0: max = Math.min(anchorX - imageRect.left, anchorY - imageRect.top); break;
+            case 1: max = Math.min(imageRect.right - anchorX, anchorY - imageRect.top); break;
+            case 2: max = Math.min(anchorX - imageRect.left, imageRect.bottom - anchorY); break;
+            case 3: max = Math.min(imageRect.right - anchorX, imageRect.bottom - anchorY); break;
         }
-        return maxSide;
+        return max;
     }
 
-    private RectF buildSquareFromAnchor(float anchorX, float anchorY, float side) {
-        RectF rect = new RectF();
+    private RectF buildSquareFromAnchor(float x, float y, float size) {
+        RectF r = new RectF();
         switch (activeCorner) {
-            case 0: rect.set(anchorX - side, anchorY - side, anchorX, anchorY); break;
-            case 1: rect.set(anchorX, anchorY - side, anchorX + side, anchorY); break;
-            case 2: rect.set(anchorX - side, anchorY, anchorX, anchorY + side); break;
-            case 3: rect.set(anchorX, anchorY, anchorX + side, anchorY + side); break;
+            case 0: r.set(x - size, y - size, x, y); break;
+            case 1: r.set(x, y - size, x + size, y); break;
+            case 2: r.set(x - size, y, x, y + size); break;
+            case 3: r.set(x, y, x + size, y + size); break;
         }
-        return rect;
+        return r;
     }
 
     private void moveImage(float dx, float dy) {
@@ -387,44 +365,42 @@ public class CropImageView extends View {
         invalidate();
     }
 
-    private void scaleImage(float scaleFactor) {
-        float currentScale = getCurrentScale();
-        float minScale = getMinScale();
-        if (currentScale * scaleFactor < minScale) {
-            scaleFactor = minScale / currentScale;
-        }
-        imageMatrix.postScale(scaleFactor, scaleFactor,
-                cropRect.centerX(), cropRect.centerY());
+    private float getCurrentScale() {
+        imageMatrix.getValues(matrixValues);
+        return matrixValues[Matrix.MSCALE_X];
+    }
+
+    // 修改：接受缩放焦点坐标
+    private void scaleImage(float factor, float focusX, float focusY) {
+        float current = getCurrentScale();
+        float min = getMinScale();
+        if (current * factor < min) factor = min / current;
+        // 以手指中心为焦点缩放
+        imageMatrix.postScale(factor, factor, focusX, focusY);
         updateImageRect();
         clampImageToCoverCrop();
         invalidate();
     }
 
-    // ---------- 边界限制 ----------
-    private void clampCropInView(RectF rect) {
-        if (rect.left < 0) {
-            rect.right += -rect.left;
-            rect.left = 0;
-        }
-        if (rect.top < 0) {
-            rect.bottom += -rect.top;
-            rect.top = 0;
-        }
-        if (rect.right > viewWidth) {
-            rect.left -= (rect.right - viewWidth);
-            rect.right = viewWidth;
-        }
-        if (rect.bottom > viewHeight) {
-            rect.top -= (rect.bottom - viewHeight);
-            rect.bottom = viewHeight;
-        }
+    private float getMinScale() {
+        return Math.max(
+                cropRect.width() / sourceBitmap.getWidth(),
+                cropRect.height() / sourceBitmap.getHeight()
+        );
     }
 
-    private void clampCropInsideImage(RectF crop) {
-        if (crop.left < imageRect.left) crop.offset(imageRect.left - crop.left, 0);
-        if (crop.right > imageRect.right) crop.offset(imageRect.right - crop.right, 0);
-        if (crop.top < imageRect.top) crop.offset(0, imageRect.top - crop.top);
-        if (crop.bottom > imageRect.bottom) crop.offset(0, imageRect.bottom - crop.bottom);
+    private void clampCropInView(RectF r) {
+        if (r.left < 0) r.offset(-r.left, 0);
+        if (r.top < 0) r.offset(0, -r.top);
+        if (r.right > viewWidth) r.offset(viewWidth - r.right, 0);
+        if (r.bottom > viewHeight) r.offset(0, viewHeight - r.bottom);
+    }
+
+    private void clampCropInsideImage(RectF r) {
+        if (r.left < imageRect.left) r.offset(imageRect.left - r.left, 0);
+        if (r.right > imageRect.right) r.offset(imageRect.right - r.right, 0);
+        if (r.top < imageRect.top) r.offset(0, imageRect.top - r.top);
+        if (r.bottom > imageRect.bottom) r.offset(0, imageRect.bottom - r.bottom);
     }
 
     private void clampImageToCoverCrop() {
@@ -437,11 +413,5 @@ public class CropImageView extends View {
             imageMatrix.postTranslate(dx, dy);
             updateImageRect();
         }
-    }
-
-    private float getMinScale() {
-        if (sourceBitmap == null) return 1f;
-        return Math.max(cropRect.width() / sourceBitmap.getWidth(),
-                cropRect.height() / sourceBitmap.getHeight());
     }
 }
