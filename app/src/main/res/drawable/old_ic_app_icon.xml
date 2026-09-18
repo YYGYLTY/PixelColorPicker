@@ -1,0 +1,62 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- 像素色块背景 -->
+    <path
+        android:fillColor="#FF5C8A"
+        android:pathData="M18,20h18v18h-18z"/>
+
+    <path
+        android:fillColor="#FFD166"
+        android:pathData="M45,15h18v18h-18z"/>
+
+    <path
+        android:fillColor="#06D6A0"
+        android:pathData="M72,22h18v18h-18z"/>
+
+
+    <path
+        android:fillColor="#118AB2"
+        android:pathData="M15,70h18v18h-18z"/>
+
+    <path
+        android:fillColor="#8338EC"
+        android:pathData="M45,78h18v18h-18z"/>
+
+    <path
+        android:fillColor="#EF476F"
+        android:pathData="M75,68h18v18h-18z"/>
+
+
+    <!-- 中心取色圆 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="
+        M54,32
+        A22,22 0,1 0,54 76
+        A22,22 0,1 0,54 32"/>
+
+
+    <!-- 中心像素点 -->
+    <path
+        android:fillColor="#20202A"
+        android:pathData="
+        M54,42
+        A12,12 0,1 0,54 66
+        A12,12 0,1 0,54 42"/>
+
+
+    <!-- 吸管 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="
+        M62,58
+        L83,79
+        L78,84
+        L57,63
+        Z"/>
+
+</vector>

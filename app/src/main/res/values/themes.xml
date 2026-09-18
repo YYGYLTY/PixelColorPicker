@@ -1,25 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-
-<resources>
-
-    <style name="Base.AppTheme" parent="Theme.Material3.DayNight.NoActionBar">
-
-        <!-- 天依蓝主题 -->
-        <item name="colorPrimary">@color/tianyi_blue</item>
-        <item name="colorPrimaryContainer">@color/tianyi_blue</item>
-
-        <!-- 状态栏 -->
-        <item name="android:statusBarColor">@color/tianyi_blue</item>
-
-        <!-- 状态栏文字深色 -->
-        <item name="android:windowLightStatusBar">true</item>
-
-        <!-- 页面背景 -->
-        <item name="android:windowBackground">@color/app_background</item>
-
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <style name="Theme.PixelColorPicker" parent="android:Theme.Material.NoActionBar">
+        <!-- 窗口背景 = 应用底色：避免启动/绘制间隙透出系统壁纸 -->
+        <item name="android:windowBackground">@color/window_background</item>
+        <!-- 全屏延伸 + 透明系统栏 + 禁用对比度蒙层（重建后也不会被系统加回暗色底） -->
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:enforceStatusBarContrast" tools:targetApi="q">false</item>
+        <item name="android:enforceNavigationBarContrast" tools:targetApi="q">false</item>
     </style>
-
-
-    <style name="AppTheme" parent="Base.AppTheme" />
-
 </resources>

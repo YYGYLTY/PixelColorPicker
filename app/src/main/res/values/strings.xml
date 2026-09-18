@@ -1,25 +1,207 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">PixelColorPicker</string>
-    <string name="app_description">图片像素化/色板码转换器</string>
-    <string name="click_import">点击导入图片</string>
+    <string name="app_description">图片像素化 / 色板码转换器</string>
+
+    <!-- 通用 -->
+    <string name="action_cancel">取消</string>
+    <string name="action_confirm">确定</string>
+    <string name="action_done">完成</string>
+    <string name="action_retry">重试</string>
+    <string name="action_close">关闭</string>
+    <string name="action_back">返回</string>
+
+    <!-- 底部导航 -->
+    <string name="tab_home">首页</string>
+    <string name="tab_palette">色板</string>
+    <string name="tab_code">编码</string>
+    <string name="tab_about">关于</string>
+
+    <!-- 首页 -->
+    <string name="home_subtitle">图片像素化 / 色板码转换器</string>
+    <string name="welcome_prefix">欢迎使用</string>
+    <string name="display_tap">点击选择图片</string>
     <string name="import_image">导入图片</string>
-    <string name="export_image">导出图片</string>
-    <string name="create_pixel">生成 16×16 像素画</string>
-    <string name="extract_palette">提取颜色色板</string>
-    <string name="current_palette">🎨 当前16×16色板（点击复制）</string>
-    <string name="copy_palette">复制完整256色板码</string>
-    <string name="expand_palette">展开分列压缩色板码</string>
+    <string name="import_image_hint">选择图片文件</string>
+    <string name="swap_size">交换宽高</string>
+    <string name="canvas_size">画布尺寸</string>
+    <string name="canvas_width">画布宽度</string>
+    <string name="canvas_height">画布高度</string>
+    <string name="common_sizes">常用尺寸</string>
+    <string name="custom_size">自定义尺寸</string>
+    <string name="size_invalid">请输入 1 - 999 的数字</string>
+    <string name="grid_display">网格显示</string>
+    <string name="new_blank_canvas">画布编辑</string>
+    <string name="new_blank_hint">创建空白画布开始绘制</string>
+    <string name="fine_tune">微调控制</string>
+    <string name="drag_adjust">拖拽调整</string>
+    <string name="zoom_in">放大</string>
+    <string name="zoom_out">缩小</string>
+    <string name="rotate_ccw">逆时针</string>
+    <string name="rotate_cw">顺时针</string>
+    <string name="reset">重置</string>
+    <string name="algorithm">算法选择</string>
+    <string name="algo_hint">左右滑动选择算法</string>
+    <string name="algo_nearest">Nearest</string>
+    <string name="algo_nearest_desc">保留像素，清晰锐利</string>
+    <string name="algo_bilinear">Bilinear</string>
+    <string name="algo_bilinear_desc">平滑过滤，边缘柔和</string>
+    <string name="algo_bicubic">Bicubic</string>
+    <string name="algo_bicubic_desc">平衡效果，细节较好</string>
+    <string name="algo_lanczos">Lanczos</string>
+    <string name="algo_lanczos_desc">高质量缩放，细节最好</string>
+    <string name="algo_average">Average</string>
+    <string name="algo_average_desc">区域平均，适合照片</string>
+    <string name="algo_custom">自定义</string>
+    <string name="algo_custom_desc">点按调整参数</string>
+    <string name="algo_custom_desc_fmt">%1$s · %2$d×</string>
+    <string name="custom_algo_title">自定义算法</string>
+    <string name="custom_kernel_label">取色方式</string>
+    <string name="custom_kernel_desc_nearest">只取 1 个点，边缘最锐利、颗粒感强</string>
+    <string name="custom_kernel_desc_bilinear">取周围 4 个点平均，轻微柔和</string>
+    <string name="custom_kernel_desc_bicubic">取周围 16 个点加权，平滑自然</string>
+    <string name="custom_kernel_desc_lanczos">高质量加权，平滑且细节保留好</string>
+    <string name="custom_samples_label">平滑程度</string>
+    <string name="custom_samples_sharp">锐利</string>
+    <string name="custom_samples_soft">柔和</string>
+    <string name="custom_samples_hint">越大越柔和，生成速度越慢</string>
+    <string name="custom_preview_empty">选择图片后可预览效果</string>
+    <string name="update_title_fmt">发现新版本 v%1$s</string>
+    <string name="update_notes_fallback">包含最新修复与功能改进。</string>
+    <string name="update_download">去下载</string>
+    <string name="update_ignore">忽略此版本</string>
+    <string name="update_open_failed">无法打开下载链接</string>
+    <string name="about_stat_fmt">已为你生成 %1$d 张像素画</string>
+    <string name="generate">生成像素画</string>
+    <string name="save_png">保存 PNG</string>
+    <string name="saved_png">已保存 PNG</string>
+    <string name="save_failed">保存失败，请重试</string>
+    <string name="save_to_album">保存图片到相册</string>
+    <string name="save_need_generate">请先生成像素画</string>
+    <string name="saved_to_album">已保存到相册</string>
+    <string name="settings">设置</string>
+    <string name="settings_auto_generate">自动生成像素画</string>
+    <string name="settings_auto_generate_desc">选图裁剪后自动生成像素画</string>
+    <string name="settings_theme">主题</string>
+    <string name="theme_system">跟随系统</string>
+    <string name="theme_light">浅色</string>
+    <string name="theme_dark">深色</string>
+    <string name="theme_dialog_title">选择主题</string>
+    <string name="generate_hint">按当前参数生成</string>
+    <string name="editor_save">保存图片</string>
+    <string name="editor_saved">已保存</string>
+    <string name="editor_add_to_home">添加图片到首页</string>
+    <string name="tap_to_collapse">收起</string>
+    <string name="collapse">折叠</string>
+    <string name="expand">展开</string>
+    <string name="editor_pan_x">水平</string>
+    <string name="editor_pan_y">垂直</string>
+    <string name="rotate_square_only">仅正方形画布可旋转</string>
+    <string name="size_ratio_locked">比例已改变，请重新框选图片</string>
+    <string name="editor_canvas_zoom">画布缩放</string>
+    <string name="editor_added_to_home">已添加到首页</string>
+    <string name="editor_exit_title">保存修改？</string>
+    <string name="editor_exit_message">退出前是否保存画布？</string>
+    <string name="editor_exit_save">保存并退出</string>
+    <string name="editor_exit_discard">不保存</string>
+    <string name="editor_history">保存历史</string>
+    <string name="editor_history_empty">暂无保存记录</string>
+    <string name="action_delete">删除</string>
+    <string name="history_delete_title">删除这条记录？</string>
+    <string name="history_delete_message">删除后无法恢复</string>
+    <string name="editor_palette_add">添加到色板</string>
+    <string name="custom_size_preset">自定义常用尺寸</string>
+    <string name="fine_tune_reset_title">重置调整？</string>
+    <string name="fine_tune_reset_message">将恢复默认的缩放、位置和旋转</string>
+    <string name="generating">生成中…</string>
+    <string name="pick_first">请先在展示框选择图片</string>
+    <string name="generated">已生成像素画</string>
+    <string name="toast_import_first">请先导入图片</string>
+    <string name="toast_edge_reached">已到达边界</string>
+    <string name="toast_min_scale">已缩至最小</string>
+    <string name="change_image">更换图片</string>
+    <string name="recrop">重新裁剪</string>
 
-    <!-- Toast 提示 -->
-    <string name="toast_import_image_first">请先导入图片</string>
-    <string name="toast_generate_16x16_first">请先生成16×16像素画</string>
-    <string name="toast_generate_pixel_art_first">请先生成像素画</string>
-    <string name="toast_palette_copied">游戏色板码已复制</string>
+    <!-- 裁剪 -->
+    <string name="crop_title">裁剪</string>
+    <string name="crop_hint">拖拽移动图片，双指缩放调整范围</string>
+    <string name="crop_confirm">确定</string>
 
-    <!-- 语言选择 -->
-    <string name="select_language">选择语言</string>
-    <string name="lang_chinese">中文</string>
-    <string name="lang_english">English</string>
-    <string name="lang_japanese">日本語</string>
+    <!-- 编辑器 -->
+    <string name="editor_title">像素编辑器</string>
+    <string name="editor_tool_pencil">画笔</string>
+    <string name="editor_tool_eraser">橡皮</string>
+    <string name="editor_tool_eyedropper">吸管</string>
+    <string name="editor_tool_fill">填充</string>
+    <string name="editor_undo">撤销</string>
+    <string name="editor_redo">重做</string>
+    <string name="editor_clear">清空</string>
+    <string name="editor_fill_all">全部填充</string>
+    <string name="editor_color">颜色</string>
+    <string name="editor_custom_color">自定义颜色</string>
+    <string name="editor_export_png">导出 PNG</string>
+    <string name="editor_selected_pixel">当前像素</string>
+    <string name="editor_coord">坐标</string>
+    <string name="editor_no_selection">点击画布查看像素颜色</string>
+    <string name="add_image_to_home">添加图片到首页</string>
+
+    <!-- 色板 -->
+    <string name="palette_title">当前 %1$s 色板</string>
+    <string name="palette_tap_copy">（点击复制）</string>
+    <string name="palette_hint">可自由滑动查看，点击格子复制颜色</string>
+    <string name="palette_search_title">定位坐标</string>
+    <string name="palette_empty">还没有像素画，先去首页生成吧</string>
+    <string name="empty_title">还没有像素画</string>
+    <string name="empty_hint">去首页生成一个吧</string>
+    <string name="palette_copied">已复制 %1$s</string>
+
+    <!-- 编码 -->
+    <string name="code_title">编码</string>
+    <string name="code_hint">按列复制色板码：16 色 + 2 白（最多 18 色）</string>
+    <string name="code_column">第 %1$d 列</string>
+    <string name="code_copy">复制</string>
+    <string name="code_copied">已复制第 %1$d 列色板码</string>
+
+    <!-- 语言 -->
+    <string name="language">语言</string>
+    <string name="lang_zh">中文</string>
+    <string name="lang_en">English</string>
+    <string name="lang_ja">日本語</string>
+
+    <!-- 关于 -->
+    <string name="about_version">版本 2.0 · Jetpack Compose</string>
+    <string name="about_what_title">这是什么</string>
+    <string name="about_what_body">PixelColorPicker 是一个本地的图片像素化工具：把任意图片裁剪并转换为指定尺寸（1～999）的像素画，查看每一格的颜色，并生成可与旧版兼容的「色板码」。</string>
+    <string name="about_flow_title">使用流程</string>
+    <string name="about_flow_body">1. 在首页设置画布尺寸\n2. 点击展示框选择图片，按画布比例裁剪\n3. 用微调控制调整位置、大小、角度，选择算法\n4. 点击「生成像素画」\n5. 在「色板」查看每格颜色，在「编码」按列复制色板码</string>
+    <string name="about_codec_title">16 色板码协议</string>
+    <string name="about_codec_body">每列取 16 个像素颜色（高度不足补白），再追加 2 个白色，共 18 色；使用 Protobuf 字节 + GZIP + 标准 Base64 编码。</string>
+    <string name="about_privacy_title">隐私</string>
+    <string name="about_privacy_body">所有图片处理都在本地完成，不联网、不上传，不请求存储权限（使用系统照片选择器）。</string>
+    <string name="about_credits_title">贡献者</string>
+    <string name="about_credits_body">由 Astnote 与 AI 协作完成的产品重制版。</string>
+
+    <!-- 反馈 -->
+    <string name="toast_filled">已全部填充</string>
+    <string name="toast_cleared">画布已清空</string>
+    <string name="toast_load_failed">图片读取失败，请换一张试试</string>
+    <string name="toast_picker_failed">无法打开图片选择器，请重试</string>
+
+    <!-- 对话框 -->
+    <string name="dialog_clear_title">清空画布？</string>
+    <string name="dialog_clear_message">画布会变成透明，此操作可以撤销。</string>
+
+    <!-- 无障碍 -->
+    <string name="cd_pixel_canvas">像素画布</string>
+    <string name="cd_color_swatch">颜色色块</string>
+    <string name="cd_selected_pixel">选中的像素</string>
+    <string name="credits_astnote_role">统筹测试</string>
+    <string name="credits_deepseek_role">全栈开发</string>
+    <string name="credits_chatgpt_role">操控逻辑</string>
+    <string name="credits_doubao_role">图标绘制</string>
+    <string name="credits_made_with">Human-AI Collaboration ❤️</string>
+    <string name="about_support_title">支持作者</string>
+    <string name="about_support_body">如果这个小工具帮到了你，欢迎支持一下～</string>
+    <string name="about_support_collapse">点击收起</string>
+    <string name="drag_zoom_first_hint">先双指放大，再拖拽调整～</string>
 </resources>
