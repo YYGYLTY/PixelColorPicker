@@ -27,6 +27,26 @@
 本仓库是 **v2.0 Compose 重制版**（Kotlin + Jetpack Compose + Material 3）。
 旧版 Java 源码保留在 [`v1.0.1`](https://github.com/YYGYLTY/PixelColorPicker/tree/v1.0.1) 标签中，随时可查阅。
 
+## 📸 界面预览
+
+<table>
+  <tr>
+    <td align="center" width="33%"><img src="assets/screenshots/01_home.jpg" width="230"><br><sub>首页 · 开场动画</sub></td>
+    <td align="center" width="33%"><img src="assets/screenshots/02_generated.jpg" width="230"><br><sub>生成像素画</sub></td>
+    <td align="center" width="33%"><img src="assets/screenshots/03_finetune.jpg" width="230"><br><sub>微调控制与算法选择</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="assets/screenshots/04_custom_algo.jpg" width="230"><br><sub>自定义算法（实时预览）</sub></td>
+    <td align="center"><img src="assets/screenshots/05_editor.jpg" width="230"><br><sub>像素编辑器</sub></td>
+    <td align="center"><img src="assets/screenshots/06_palette.jpg" width="230"><br><sub>色板（HEX / 坐标 / 同色计数）</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="assets/screenshots/07_palette_locate.jpg" width="230"><br><sub>按坐标定位</sub></td>
+    <td align="center"><img src="assets/screenshots/08_code.jpg" width="230"><br><sub>编码（按列复制色板码）</sub></td>
+    <td align="center"><img src="assets/screenshots/09_about.jpg" width="230"><br><sub>关于</sub></td>
+  </tr>
+</table>
+
 ## ✨ 功能一览
 
 ### 🖼 图片 → 像素画
@@ -44,7 +64,7 @@
 | **区域平均** | 最柔和、噪点最少 |
 
 ### 🎨 查看与使用
-- **色板页**：双向自由滚动网格，显示 HEX / 坐标 / 同色计数，点击复制
+- **色板页**：双向自由滚动网格，显示 HEX / 坐标 / 同色计数，点击复制；支持按坐标**定位查找**
 - **编码页**：按列复制「18 色板码」，与旧版 `PaletteExporter` **逐字节兼容**
 - 保存 W×H PNG 到相册（整数倍最近邻放大，保持像素锐利）
 
@@ -57,6 +77,16 @@
 - 深色 / 浅色主题（跟随系统，可手动切换）
 - **检查更新** + 本地使用统计（仅存本机，不上传）
 - 无网络权限、无广告、无多余权限（图片选择使用系统照片选择器）
+
+## 🧭 使用流程
+
+1. 在首页设置**画布尺寸**（1~999，或点「常用尺寸」快速选择）
+2. 点击展示框**选择图片** → 按画布比例裁剪
+3. 用**微调控制**调整位置 / 大小 / 角度，选择**算法**（或自定义算法）
+4. 点击「**生成像素画**」
+5. 在「**色板**」查看每一格颜色（点击复制），在「**编码**」按列复制色板码
+
+> 也可以点「画布编辑」从空白画布开始手绘，完成后保存到相册或历史记录。
 
 ## 📱 下载安装
 
@@ -118,6 +148,10 @@ com.pixelcolorpicker
 | **Doubao** | 图标绘制 |
 
 由 **Astnote** 与 AI 协作完成的产品重制 ❤️
+
+<p align="center">
+  <img src="assets/screenshots/10_about_credits.jpg" width="280">
+</p>
 
 ## 📃 许可
 
