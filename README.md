@@ -229,10 +229,6 @@ com.pixelcolorpicker
 
 由 **Astnote** 与 AI 协作完成的产品重制 ❤️
 
-<p align="center">
-  <img src="assets/screenshots/10_about_credits.jpg" width="280">
-</p>
-
 ---
 
 ## 📃 许可
