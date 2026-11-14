@@ -232,11 +232,9 @@
 
 /* ---------- 3. 展示框 ---------- */
 .pcp-display-box {
-
   position: relative;
   border-radius: 16px;
   overflow: hidden;
-  aspect-ratio: 1 / 1;
   display: grid;
   place-items: center;
   background: var(--pcp-BgCardSecondary);
@@ -784,4 +782,10 @@
   border: 1px solid var(--pcp-InputBorder);
   image-rendering: pixelated;
   background: var(--pcp-BgCardSecondary);
+}
+/* [对齐 App] 展示框 canvas 由 JS 按 contentRect 绘制，不做 CSS 拉伸 */
+#previewCanvas {
+  display: block;
+  image-rendering: pixelated;
+  border-radius: 12px;
 }
