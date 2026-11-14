@@ -471,6 +471,13 @@
   function renderPalette() {
     var empty = $('paletteEmpty');
     var body = $('paletteBody');
+    // [修复] palette_title 含 {p1} 占位符，必须传参，否则标题会显示“当前 {p1} 色板”
+    var titleEl = $('paletteTitle');
+    if (titleEl) {
+      titleEl.textContent = VM.pixelArt
+        ? S('palette_title', { p1: VM.artW + '×' + VM.artH })
+        : S('palette_title', { p1: '—' });
+    }
     if (!VM.pixelArt) {
       empty.hidden = false; body.hidden = true;
       return;
@@ -478,9 +485,11 @@
     empty.hidden = true; body.hidden = false;
 
     var W = VM.artW, H = VM.artH;
-    // 格子尺寸统一为「999×999 时的尺寸」（对应源码注释）
-    var maxEdgePx = Math.min(window.innerWidth - 80, 680);
-    var cell = Math.max(2, Math.floor(maxEdgePx / 999));
+    // [对齐 App] PaletteScreen：cellDp = (210000 / (999 * density)).coerceIn(24, 76)
+    // 网页的 CSS px 已是逻辑单位，直接用 devicePixelRatio 当 density。
+    // 原先写成 maxEdgePx/999 得到 2px，导致色板只有指甲盖大小。
+    var dpr = window.devicePixelRatio || 1;
+    var cell = clamp(210000 / (999 * dpr), 24, 76);
     var dpr = Math.min(window.devicePixelRatio || 1, 2);
     var cs = Math.max(1, Math.round(cell * dpr));
 
@@ -530,7 +539,8 @@
     // X 标尺
     var rx = $('rulerX');
     rx.innerHTML = '';
-    var stepX = W <= 20 ? 1 : Math.ceil(W / 12);
+    // 保证相邻刻度间距 >= 26px，否则数字会叠在一起
+    var stepX = Math.max(1, Math.ceil(26 / cell));
     for (var x = 0; x < W; x += stepX) {
       var s = document.createElement('span');
       s.textContent = x;
@@ -542,7 +552,7 @@
     // Y 标尺
     var ry = $('rulerY');
     ry.innerHTML = '';
-    var stepY = H <= 20 ? 1 : Math.ceil(H / 16);
+    var stepY = Math.max(1, Math.ceil(26 / cell));
     for (var y = 0; y < H; y += stepY) {
       var t = document.createElement('span');
       t.textContent = y;
@@ -820,15 +830,28 @@
     });
     box.addEventListener('pointermove', function (e) {
       if (!dragging) return;
+      e.preventDefault();
       var rect = box.getBoundingClientRect();
-      VM.offsetX = sox + (e.clientX - sx) / rect.width;
-      VM.offsetY = soy + (e.clientY - sy) / rect.height;
-      drawPreview();
+      var dx = (e.clientX - sx) / rect.width;
+      var dy = (e.clientY - sy) / rect.height;
+      // [对齐 App] panByPreview：偏移限制在 ±2
+      VM.offsetX = clamp(sox + dx, -2, 2);
+      VM.offsetY = clamp(soy + dy, -2, 2);
+      // [性能] 拖动中只做 CSS 变换（GPU 合成），不重新采样，否则每次移动都要跑整图像素化 → 卡死
+      var pcv = $('previewCanvas');
+      if (pcv) {
+        pcv.style.transformOrigin = 'center center';
+        pcv.style.transform = 'translate(' + (VM.offsetX * 100) + '%,' + (VM.offsetY * 100) + '%)';
+      }
     });
     function endDrag(e) {
       if (!dragging) return;
       dragging = false;
       try { box.releasePointerCapture(e.pointerId); } catch (err) {}
+      // 松手后清掉临时变换并重新采样
+      var pcv = $('previewCanvas');
+      if (pcv) pcv.style.transform = '';
+      drawPreview();
       drawCustomPreview();
     }
     box.addEventListener('pointerup', endDrag);
@@ -1243,15 +1266,57 @@
     var cv = $('editorCanvas');
     if (!cv || !VM.editPixels) return;
     var W = VM.editW, H = VM.editH;
-    cv.width = W; cv.height = H;
-    cv.getContext('2d').putImageData(toImageData(VM.editPixels, W, H), 0, 0);
 
+    // 计算显示倍率（整数倍放大，保持像素锐利）
     var maxH = Math.min(window.innerHeight * 0.5, 460);
     var maxW = window.innerWidth - 60;
     var s = Math.min(maxW / W, maxH / H);
     var mult = s >= 1 ? Math.max(1, Math.floor(s)) : s;
-    cv.style.width = Math.round(W * mult) + 'px';
-    cv.style.height = Math.round(H * mult) + 'px';
+    var cw = Math.max(1, Math.round(W * mult));
+    var ch = Math.max(1, Math.round(H * mult));
+
+    cv.width = cw;
+    cv.height = ch;
+    var ctx = cv.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+
+    // [修复] 先铺一层格子底纹，透明像素也能看见（否则浅色主题下整块白，完全看不见）
+    var cell = Math.max(4, Math.round(mult));
+    for (var cy = 0; cy < ch; cy += cell) {
+      for (var cx = 0; cx < cw; cx += cell) {
+        var odd = ((cx / cell) | 0) + ((cy / cell) | 0);
+        ctx.fillStyle = odd % 2 ? 'rgba(140,145,160,0.16)' : 'rgba(140,145,160,0.07)';
+        ctx.fillRect(cx, cy, cell, cell);
+      }
+    }
+
+    // 再按像素块填色（跳过全透明，保留底纹）
+    for (var y = 0; y < H; y++) {
+      for (var x = 0; x < W; x++) {
+        var c = VM.editPixels[y * W + x];
+        if (((c >>> 24) & 0xFF) === 0) continue;
+        ctx.fillStyle = '#' + ((c >>> 0) & 0xFFFFFF).toString(16).padStart(6, '0');
+        ctx.fillRect(Math.floor(x * mult), Math.floor(y * mult),
+          Math.ceil(mult), Math.ceil(mult));
+      }
+    }
+
+    // 网格线（格子够大时才画，否则一片糊）
+    if (mult >= 6) {
+      ctx.strokeStyle = 'rgba(128,132,150,0.28)';
+      ctx.lineWidth = 1;
+      for (var i = 1; i < W; i++) {
+        var px = Math.round(i * mult) + 0.5;
+        ctx.beginPath(); ctx.moveTo(px, 0); ctx.lineTo(px, ch); ctx.stroke();
+      }
+      for (var j = 1; j < H; j++) {
+        var py = Math.round(j * mult) + 0.5;
+        ctx.beginPath(); ctx.moveTo(0, py); ctx.lineTo(cw, py); ctx.stroke();
+      }
+    }
+
+    cv.style.width = cw + 'px';
+    cv.style.height = ch + 'px';
 
     var meta = $('edMeta');
     if (meta) meta.textContent = W + '×' + H;
