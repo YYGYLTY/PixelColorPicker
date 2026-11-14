@@ -49,11 +49,7 @@
         }
       }
     }
-    // 短标签（宽/高）
-    var kW = document.querySelector('#sizeW .k');
-    var kH = document.querySelector('#sizeH .k');
-    if (kW) kW.textContent = lang === 'zh' ? '宽' : (lang === 'ja' ? '幅' : 'W');
-    if (kH) kH.textContent = lang === 'zh' ? '高' : (lang === 'ja' ? '高' : 'H');
+    // [对齐 App] SizeInput 的 label 在源码中固定为 "W"/"H"，不随语言变化，故不翻译。
 
     document.documentElement.lang = lang === 'zh' ? 'zh-CN' : lang;
   }
@@ -69,6 +65,11 @@
     dragAdjustEnabled: false,
     themeMode: 'system',
     autoGenerate: false,
+
+    // [对齐 App] 常用尺寸：自定义预设 + 使用历史
+    customPreset0: '',
+    customPreset1: '',
+    sizeHistory: {},
 
     // 源图
     sourceBitmap: null,
@@ -242,16 +243,59 @@
     setTimeout(step, 120);
   }
 
-  // ==================== 预设尺寸 ====================
-  var PRESETS = [
-    [16, 16], [32, 32], [48, 48], [64, 64],
-    [16, 32], [32, 64], [64, 128], [128, 128],
-    [8, 8], [24, 24], [96, 96], [256, 256]
-  ];
+  // ==================== 常用尺寸（对应 viewModel.presetSize / saveCustomPreset） ====================
+  // App 逻辑：优先自定义预设（customPreset0/1）；不足时用历史使用次数 top2；
+  // 再不足用默认 16×16 / 32×32。网页版原先硬编码 12 个固定值，与 App 不一致。
+
+  function parseSizeKey(k) {
+    if (!k) return null;
+    var parts = String(k).split('×');
+    if (parts.length !== 2) return null;
+    var w = parseInt(parts[0], 10), h = parseInt(parts[1], 10);
+    if (!(w >= 1 && w <= 999) || !(h >= 1 && h <= 999)) return null;
+    return [w, h];
+  }
 
   function presetSize(idx) {
-    // 对应 viewModel.presetSize
-    return PRESETS[idx] || [16, 16];
+    var custom = parseSizeKey(idx === 0 ? VM.customPreset0 : VM.customPreset1);
+    if (custom) return custom;
+    var keys = Object.keys(VM.sizeHistory);
+    keys.sort(function (a, b) { return VM.sizeHistory[b] - VM.sizeHistory[a]; });
+    var sorted = [];
+    for (var i = 0; i < keys.length; i++) {
+      var p = parseSizeKey(keys[i]);
+      if (p) sorted.push(p);
+    }
+    if (sorted.length > idx) return sorted[idx];
+    return idx === 0 ? [16, 16] : [32, 32];
+  }
+
+  /** 保存自定义常用尺寸（新值进预设 1，旧预设 1 顺延到预设 2），并应用。 */
+  function saveCustomPreset(w, h) {
+    var nw = clamp(w | 0, 1, 999), nh = clamp(h | 0, 1, 999);
+    var old0 = VM.customPreset0;
+    if (!old0) {
+      var p = presetSize(0);
+      old0 = p[0] + '×' + p[1];
+    }
+    VM.customPreset1 = old0;
+    VM.customPreset0 = nw + '×' + nh;
+    try {
+      localStorage.setItem('pcp.preset_0', VM.customPreset0);
+      localStorage.setItem('pcp.preset_1', VM.customPreset1);
+    } catch (e) {}
+    setCanvasSize(nw, nh);
+  }
+
+  /** 记录一次尺寸使用（复刻旧版 recordSizeHistory）。 */
+  function recordSizeHistory() {
+    var key = VM.canvasWidth + '×' + VM.canvasHeight;
+    VM.sizeHistory[key] = (VM.sizeHistory[key] || 0) + 1;
+    var parts = [];
+    Object.keys(VM.sizeHistory).forEach(function (k) {
+      parts.push(k + ':' + VM.sizeHistory[k]);
+    });
+    try { localStorage.setItem('pcp.size_history', parts.join(';')); } catch (e) {}
   }
 
   function renderPresets() {
@@ -304,6 +348,7 @@
     // 正方形才能旋转（对应 rotate_square_only）
     VM.canvasWidth = w;
     VM.canvasHeight = h;
+    recordSizeHistory(); // [对齐 App] 记录使用历史
     updateSizeUI();
     renderPresets();
     drawPreview();
@@ -365,10 +410,10 @@
     // 预览直接用画布尺寸渲染（CSS 放大后 pixelated，保持锐利）
     var pw = VM.canvasWidth;
     var ph = VM.canvasHeight;
-    // 超大画布限制到 512 以内，保证拖动/调参时流畅
+    // [对齐 App] PREVIEW_MAX_EDGE = 1024
     var mx = Math.max(pw, ph);
-    if (mx > 512) {
-      var k = 512 / mx;
+    if (mx > 1024) {
+      var k = 1024 / mx;
       pw = Math.max(1, Math.round(pw * k));
       ph = Math.max(1, Math.round(ph * k));
     }
@@ -739,8 +784,12 @@
         var act = this.getAttribute('data-ft');
         if (!VM.sourceBitmap) { toast(S('pick_first')); return; }
         switch (act) {
-          case 'zoomin': VM.scale = clamp(VM.scale * 1.25, 0.2, 8); break;
-          case 'zoomout': VM.scale = clamp(VM.scale / 1.25, 0.2, 8); break;
+          // [对齐 App] zoomInStep/zoomOutStep：ZOOM_STEP=0.3 加法，范围 1~12
+          case 'zoomin': VM.scale = Math.min(12, VM.scale + 0.3); break;
+          case 'zoomout':
+            if (VM.scale - 0.3 < 1) { toast(S('toast_min_scale')); return; }
+            VM.scale = Math.max(1, VM.scale - 0.3);
+            break;
           case 'panup': VM.offsetY = clamp(VM.offsetY - 0.1, -2, 2); break;
           case 'pandown': VM.offsetY = clamp(VM.offsetY + 0.1, -2, 2); break;
           case 'panleft': VM.offsetX = clamp(VM.offsetX - 0.1, -2, 2); break;
@@ -789,7 +838,7 @@
     box.addEventListener('wheel', function (e) {
       if (!VM.sourceBitmap) return;
       e.preventDefault();
-      VM.scale = clamp(VM.scale * (e.deltaY > 0 ? 0.92 : 1.08), 0.2, 8);
+      VM.scale = clamp(VM.scale * (e.deltaY > 0 ? 0.92 : 1.08), 1, 12);
       drawPreview();
     }, { passive: false });
   }
@@ -846,26 +895,40 @@
     };
   }
 
+  /** 复刻 HomeScreen.kt 的 CustomSizeDialog：输入 W×H 并保存为常用尺寸。 */
   function showPresetDialog() {
-    var html = '<h3 class="pcp-dialog-title">' + S('common_sizes') + '</h3>';
-    html += '<div class="pcp-size-grid">';
-    PRESETS.forEach(function (p) {
-      var act = (p[0] === VM.canvasWidth && p[1] === VM.canvasHeight) ? ' is-active' : '';
-      html += '<button class="' + act + '" data-w="' + p[0] + '" data-h="' + p[1] + '">' +
-        p[0] + '×' + p[1] + '</button>';
-    });
-    html += '</div>';
-    html += '<div class="pcp-dialog-actions">' +
-      '<button class="pcp-dialog-btn" id="dlgClose">' + S('action_close') + '</button></div>';
-    openDialog(html);
-    $('dlgClose').onclick = closeDialog;
-    var bts = $('dialogBox').querySelectorAll('.pcp-size-grid button');
-    for (var i = 0; i < bts.length; i++) {
-      bts[i].onclick = function () {
-        setCanvasSize(+this.getAttribute('data-w'), +this.getAttribute('data-h'));
-        closeDialog();
-      };
+    openDialog(
+      '<h3 class="pcp-dialog-title">' + S('custom_size_preset') + '</h3>' +
+      '<div class="pcp-custom-size-row">' +
+      '<input class="pcp-size-input" id="dlgW" type="number" min="1" max="999" value="' + VM.canvasWidth + '" placeholder="W">' +
+      '<span class="pcp-custom-x">×</span>' +
+      '<input class="pcp-size-input" id="dlgH" type="number" min="1" max="999" value="' + VM.canvasHeight + '" placeholder="H">' +
+      '</div>' +
+      '<div class="pcp-size-err" id="dlgErr"></div>' +
+      '<div class="pcp-dialog-actions">' +
+      '<button class="pcp-dialog-btn" id="dlgCancel">' + S('action_cancel') + '</button>' +
+      '<button class="pcp-dialog-btn primary" id="dlgOk">' + S('action_confirm') + '</button>' +
+      '</div>'
+    );
+    var iw = $('dlgW'), ih = $('dlgH'), err = $('dlgErr'), ok = $('dlgOk');
+    function validate() {
+      var w = parseInt(iw.value, 10), h = parseInt(ih.value, 10);
+      var valid = (w >= 1 && w <= 999) && (h >= 1 && h <= 999);
+      err.textContent = valid ? '' : S('size_invalid');
+      ok.disabled = !valid;
+      return valid ? [w, h] : null;
     }
+    iw.addEventListener('input', validate);
+    ih.addEventListener('input', validate);
+    iw.focus(); iw.select();
+    $('dlgCancel').onclick = closeDialog;
+    ok.onclick = function () {
+      var v = validate();
+      if (!v) return;
+      saveCustomPreset(v[0], v[1]); // [对齐 App] 保存为常用尺寸并应用
+      closeDialog();
+    };
+    validate();
   }
 
   function showLangDialog() {
@@ -1242,7 +1305,8 @@
   // ==================== 导出 ====================
   function saveAlbum() {
     if (!VM.pixelArt) { toast(S('save_need_generate')); return; }
-    var scale = Math.max(1, Math.min(32, Math.floor(2048 / Math.max(VM.artW, VM.artH))));
+    // [对齐 App] MainViewModel.savePixelArtToAlbum：放大到约 1024，上限 64 倍
+    var scale = Math.max(1, Math.min(64, Math.floor(1024 / Math.max(VM.artW, VM.artH))));
     var small = toCanvas(VM.pixelArt, VM.artW, VM.artH);
     var cv = document.createElement('canvas');
     cv.width = VM.artW * scale;
@@ -1296,6 +1360,18 @@
       if (ag === '1') VM.autoGenerate = true;
       var gc = localStorage.getItem('pcp.genCount');
       if (gc) VM.genCount = parseInt(gc, 10) || 0;
+      // [对齐 App] 恢复自定义常用尺寸与使用历史
+      VM.customPreset0 = localStorage.getItem('pcp.preset_0') || '';
+      VM.customPreset1 = localStorage.getItem('pcp.preset_1') || '';
+      var hist = localStorage.getItem('pcp.size_history') || '';
+      if (hist) {
+        hist.split(';').forEach(function (kv) {
+          var pair = kv.split(':');
+          if (pair.length === 2 && pair[0]) {
+            VM.sizeHistory[pair[0]] = parseInt(pair[1], 10) || 0;
+          }
+        });
+      }
     } catch (e) {}
 
     applyTheme();
