@@ -65,7 +65,7 @@
     algorithm: 'nearest',
     customKernel: 'bilinear',
     customSamples: 4,
-    gridEnabled: true, // [对齐 App] MainViewModel 默认 true
+    gridEnabled: false, // 默认关闭（用户要求）
     dragAdjustEnabled: false,
     themeMode: 'system',
     autoGenerate: false,
@@ -188,8 +188,10 @@
   /** [对齐 App] old_ic_app_icon.xml：6 个彩色像素块 + 白色取色圆 + 深色圆 + 吸管。 */
   function drawLogo(cv, size) {
     var ctx = cv.getContext('2d');
-    var s = size / 108; // 源 viewport 108×108
-    ctx.clearRect(0, 0, size, size);
+    // 用 canvas 自身像素尺寸（CSS 会再缩到 32px），避免画出界导致歪
+    var S = cv.width || size;
+    var s = S / 108; // 源 viewport 108×108
+    ctx.clearRect(0, 0, S, S);
 
     function block(x, y, c) {
       ctx.fillStyle = c;
@@ -596,6 +598,8 @@
 
     var sb = $('palSearchBtn');
     if (sb) sb.hidden = !VM.pixelArt;
+    var rf = $('palRefreshBtn');
+    if (rf) rf.hidden = !VM.pixelArt;
 
     var W = VM.artW, H = VM.artH;
     // [对齐 App] PaletteScreen：cellDp = (210000 / (999 * density)).coerceIn(24, 76)
@@ -786,6 +790,8 @@
       return;
     }
     empty.hidden = true; list.hidden = false;
+    var crf = $('codeRefreshBtn');
+    if (crf) crf.hidden = false;
     list.innerHTML = '';
 
     var W = VM.artW, H = VM.artH;
@@ -1342,7 +1348,8 @@
     var html = '';
 
     html += '<div class="pcp-about-hero">';
-    html += '<canvas class="pcp-about-logo" id="aboutLogo" width="152" height="152"></canvas>';
+    // [对齐 App] AboutScreen 顶部不是 app 图标，而是渐变方块 + “PC” 文字
+    html += '<div class="pcp-about-logo pcp-about-pc">PC</div>';
     html += '<h2 class="pcp-about-name">PixelColorPicker</h2>';
     html += '<div class="pcp-about-ver">' + S('about_version') + '</div>';
     html += '</div>';
@@ -1418,10 +1425,12 @@
       '<span class="pcp-editor-meta" id="edMeta"></span>' +
       '</div>' +
       '<div class="pcp-editor-wrap"><canvas id="editorCanvas"></canvas></div>' +
+      '<div class="pcp-ed-body">' +
       '<div class="pcp-ed-tools" id="edTools"></div>' +
       '<div class="pcp-ed-palette" id="edPalette"></div>' +
       '<div class="pcp-ed-info" id="edInfo"></div>' +
-      '<div class="pcp-ed-bottom" id="edBottom"></div>';
+      '<div class="pcp-ed-bottom" id="edBottom"></div>' +
+      '</div>';
     $('app').appendChild(sub);
 
     $('edBack').onclick = function () {
@@ -1760,7 +1769,9 @@
     var W = VM.editW, H = VM.editH;
 
     // 计算显示倍率（整数倍放大，保持像素锐利）
-    var maxH = Math.min(window.innerHeight * 0.5, 460);
+    var wrapEl = document.querySelector('.pcp-editor-wrap');
+    var wrapH = wrapEl ? wrapEl.clientHeight - 24 : Math.min(window.innerHeight * 0.5, 460);
+    var maxH = Math.max(160, wrapH);
     var maxW = window.innerWidth - 60;
     var s = Math.min(maxW / W, maxH / H);
     var mult = s >= 1 ? Math.max(1, Math.floor(s)) : s;
@@ -2307,6 +2318,17 @@
     $('newCanvasBtn').onclick = function () { openEditor(false); };
     var palSb = $('palSearchBtn');
     if (palSb) palSb.onclick = function () { showPaletteSearch(); };
+    var palRf = $('palRefreshBtn');
+    if (palRf) palRf.onclick = function () {
+      renderPalette();
+      toast(S('action_done'));
+    };
+    var codeRf = $('codeRefreshBtn');
+    if (codeRf) codeRf.onclick = function () {
+      renderCodes();
+      if (VM._syncQuickBar) VM._syncQuickBar();
+      toast(S('action_done'));
+    };
 
     // 设置
     $('settingsBtn').onclick = openSettings;
