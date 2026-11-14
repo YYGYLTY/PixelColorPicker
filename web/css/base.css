@@ -1,0 +1,312 @@
+/* ===================================================================
+   PixelColorPicker Web · 基础样式
+   色值来自 PcpStyle.kt / Color.kt（自动提取，见 tools/gen_colors.py）
+   =================================================================== */
+
+/* --- 自动生成部分：来自 Kotlin 源码，勿手改 --- */
+:root {
+  --pcp-AccentBlue: #5E89EC;
+  --pcp-AccentGreen: #7AB876;
+  --pcp-AccentPurple: #66CCFF;
+  --pcp-AccentSwap: #8B5CF6;
+  --pcp-AlgorithmSelectedBg: #181523;
+  --pcp-BgCardPrimary: #0E1016;
+  --pcp-BgCardSecondary: #0B0C12;
+  --pcp-BgPage: #08090F;
+  --pcp-BorderInput: #282B38;
+  --pcp-BorderSubtle: #1A1C24;
+  --pcp-ButtonGradEnd: #5C6EFF;
+  --pcp-ButtonGradStart: #8B5CF6;
+  --pcp-CircleIconBg: #1A1A22;
+  --pcp-CircleIconStroke: #2E2E3A;
+  --pcp-GlowEnd: #474E68;
+  --pcp-GlowStart: #525777;
+  --pcp-InputBackground: #0A0C12;
+  --pcp-InputBorder: #2A2E40;
+  --pcp-NavNormal: #8A8C99;
+  --pcp-NavSelected: #66CCFF;
+  --pcp-Primary: #8B5CF6;
+  --pcp-PrimaryDark: #6D28D9;
+  --pcp-TextIcon: #9CA3AF;
+  --pcp-TextPrimary: #FFFFFF;
+  --pcp-TextSecondary: #9FA0A5;
+  --pcp-TianyiBlueDark: #3399FF;
+  /* Color.kt */
+  --pcp-CheckerAvg: #CCCCCC;
+  --pcp-CheckerDark: #BFBFBF;
+  --pcp-CheckerLight: #D9D9D9;
+  --pcp-GridLine: rgba(0,0,0,0.2);
+  --pcp-SelectionRing: #00E5FF;
+  --pcp-DarkSecondary: #4DD9D9;
+  --pcp-DarkError: #FFB4AB;
+}
+
+[data-theme='light'] {
+  --pcp-AccentBlue: #5E89EC;
+  --pcp-AccentGreen: #7AB876;
+  --pcp-AccentPurple: #66CCFF;
+  --pcp-AccentSwap: #A99BFF;
+  --pcp-AlgorithmSelectedBg: #EEF0FF;
+  --pcp-BgCardPrimary: #FFFFFF;
+  --pcp-BgCardSecondary: #F7F8FC;
+  --pcp-BgPage: #F4F5FA;
+  --pcp-BorderInput: #DCDDE8;
+  --pcp-BorderSubtle: #E8E9F2;
+  --pcp-ButtonGradEnd: #4F7BFF;
+  --pcp-ButtonGradStart: #7C5CF6;
+  --pcp-CircleIconBg: #EDEEFB;
+  --pcp-CircleIconStroke: #D5D7EA;
+  --pcp-GlowEnd: #B8C8F5;
+  --pcp-GlowStart: #C9C4F0;
+  --pcp-InputBackground: #FFFFFF;
+  --pcp-InputBorder: #DCDDE8;
+  --pcp-NavNormal: #8E90A0;
+  --pcp-NavSelected: #66CCFF;
+  --pcp-Primary: #A99BFF;
+  --pcp-PrimaryDark: #8F7DFF;
+  --pcp-TextIcon: #5F6172;
+  --pcp-TextPrimary: #1A1B22;
+  --pcp-TextSecondary: #6E7080;
+  --pcp-TianyiBlueDark: #66CCFF;
+  --pcp-DarkError: #D93B3B;
+}
+
+/* --- PcpDecelerate 缓动曲线：1 - (1-t)² --- */
+:root {
+  --pcp-decelerate: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  background: var(--pcp-BgPage);
+  color: var(--pcp-TextPrimary);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
+  transition: background 0.2s;
+}
+
+/* ===================================================================
+   发光细边框（复刻 PcpStyle.kt 的 glowCardBorder）
+   原理：底层 45° 渐变，内层卡片向内收缩 1dp，露出 1dp 渐变即"光边"
+   =================================================================== */
+.pcp-glow-card {
+  position: relative;
+  border-radius: 16px;
+  background: linear-gradient(135deg, var(--pcp-GlowStart), var(--pcp-GlowEnd));
+  padding: 1px;
+}
+
+.pcp-glow-card > .pcp-glow-inner {
+  border-radius: 15px;
+  background: var(--pcp-BgCardPrimary);
+  height: 100%;
+  overflow: hidden;
+}
+
+/* 输入框描边（复刻 inputBoxBorder） */
+.pcp-input-box {
+  border-radius: 6px;
+  background: var(--pcp-InputBackground);
+  border: 1px solid var(--pcp-InputBorder);
+}
+
+/* 圆形图标底（复刻 circleIconBg） */
+.pcp-circle-icon {
+  border-radius: 50%;
+  background: var(--pcp-CircleIconBg);
+  border: 1px solid var(--pcp-CircleIconStroke);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+/* ===================================================================
+   布局
+   =================================================================== */
+.pcp-app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-width: 560px;
+  margin: 0 auto;
+  position: relative;
+}
+
+.pcp-scroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 16px;
+  padding-bottom: 120px;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ===================================================================
+   底部悬浮导航（复刻 BottomNav.kt）
+   圆角 28dp、垂直渐变、发光边框、选中放大 1.12
+   =================================================================== */
+.pcp-bottom-nav {
+  position: absolute;
+  left: 22px;
+  right: 22px;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  align-items: center;
+  justify-content: space-evenly;
+  padding: 8px 0;
+  border-radius: 28px;
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--pcp-BgCardPrimary) 86%, transparent),
+    color-mix(in srgb, var(--pcp-BgCardPrimary) 94%, transparent));
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55);
+  border: 1px solid color-mix(in srgb, var(--pcp-Primary) 50%, transparent);
+  z-index: 100;
+}
+
+.pcp-nav-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 6px 0;
+  border-radius: 18px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  color: var(--pcp-NavNormal);
+  font-family: inherit;
+  transition: color 0.22s var(--pcp-decelerate);
+}
+
+.pcp-nav-item .pcp-nav-icon {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  transition: transform 0.22s var(--pcp-decelerate);
+}
+
+.pcp-nav-item .pcp-nav-label {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+}
+
+.pcp-nav-item.is-active {
+  color: var(--pcp-NavSelected);
+}
+
+.pcp-nav-item.is-active .pcp-nav-icon {
+  transform: scale(1.12);
+}
+
+.pcp-nav-item svg {
+  width: 24px;
+  height: 24px;
+  display: block;
+}
+
+/* ===================================================================
+   通用卡片 / 文字
+   =================================================================== */
+.pcp-card-pad { padding: 14px; }
+
+.pcp-section-gap { height: 16px; }
+
+.pcp-row { display: flex; gap: 16px; }
+.pcp-row > * { flex: 1; min-width: 0; }
+
+.pcp-label {
+  font-size: 11.5px;
+  color: var(--pcp-TextSecondary);
+  letter-spacing: 0.2px;
+}
+
+.pcp-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--pcp-TextPrimary);
+  font-variant-numeric: tabular-nums;
+}
+
+.pcp-hint {
+  font-size: 11px;
+  color: var(--pcp-TextSecondary);
+}
+
+/* 按钮 */
+.pcp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 0;
+  border-radius: 14px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 12px 18px;
+  cursor: pointer;
+  color: #fff;
+  background: linear-gradient(135deg, var(--pcp-ButtonGradStart), var(--pcp-ButtonGradEnd));
+  transition: filter 0.15s, transform 0.1s;
+}
+
+.pcp-btn:active { transform: scale(0.975); filter: brightness(1.08); }
+
+.pcp-btn-outline {
+  background: transparent;
+  border: 1px solid var(--pcp-BorderInput);
+  color: var(--pcp-TextPrimary);
+}
+
+.pcp-btn-block { width: 100%; }
+
+/* Toast */
+.pcp-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 100px;
+  transform: translate(-50%, 12px);
+  background: rgba(28, 28, 34, 0.96);
+  color: #fff;
+  font-size: 13px;
+  padding: 10px 18px;
+  border-radius: 999px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s, transform 0.2s;
+  z-index: 300;
+  max-width: 80vw;
+  text-align: center;
+}
+
+.pcp-toast.show {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+/* 滚动条 */
+.pcp-scroll::-webkit-scrollbar { width: 0; }
+.pcp-scroll { scrollbar-width: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}

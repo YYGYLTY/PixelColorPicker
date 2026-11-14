@@ -2,354 +2,371 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>PixelColorPicker · 图片像素化与色板码工具</title>
-<meta name="description" content="把任意图片变成像素画，逐格取色，生成与 Android 版逐字节兼容的 18 色板码。纯本地离线运行，不上传任何图片。">
-<meta name="theme-color" content="#0b0d12">
-<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="css/style.css">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="theme-color" content="#08090F">
+<title>PixelColorPicker</title>
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/home.css">
+<link rel="stylesheet" href="css/pages.css">
 </head>
 <body>
 
-<header class="topbar">
-  <div class="brand">
-    <div class="logo" aria-hidden="true">
-      <span></span><span></span><span></span><span></span>
-      <span></span><span></span><span></span><span></span>
-      <span></span><span></span><span></span><span></span>
-      <span></span><span></span><span></span><span></span>
-    </div>
-    <div class="brand-text">
-      <h1 data-i18n="app.title">PixelColorPicker</h1>
-      <p data-i18n="app.subtitle"></p>
-    </div>
-  </div>
+<div class="pcp-app" id="app">
 
-  <div class="topbar-actions">
-    <span class="badge-offline" data-i18n="app.badgeOffline"></span>
-    <div class="seg lang-seg" id="langSeg">
-      <button data-lang="zh">中文</button>
-      <button data-lang="en">EN</button>
-      <button data-lang="ja">日本語</button>
-    </div>
-    <button class="icon-btn" id="themeBtn" title="Theme" aria-label="Theme">
-      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-        <circle cx="12" cy="12" r="4"/>
-        <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>
-      </svg>
-    </button>
-  </div>
-</header>
+  <!-- ============ 首页 ============ -->
+  <div class="pcp-page is-active" id="page-home">
+    <div class="pcp-scroll" id="homeScroll">
 
-<nav class="tabs" id="tabs">
-  <button class="tab active" data-tab="generate"><span data-i18n="tab.generate">生成</span></button>
-  <button class="tab" data-tab="palette"><span data-i18n="tab.palette">色板</span></button>
-  <button class="tab" data-tab="code"><span data-i18n="tab.code">编码</span></button>
-  <button class="tab" data-tab="editor"><span data-i18n="tab.editor">画布</span></button>
-  <button class="tab" data-tab="about"><span data-i18n="tab.about">关于</span></button>
-</nav>
-
-<main>
-
-  <!-- ================= 生成 ================= -->
-  <section class="panel active" id="panel-generate">
-    <div class="grid-2">
-
-      <!-- 左：输入 -->
-      <div class="col">
-        <div class="card">
-          <div class="card-head">
-            <h2 data-i18n="size.title"></h2>
-            <span class="hint" data-i18n="size.hint"></span>
-          </div>
-          <div class="size-row">
-            <label class="field">
-              <span data-i18n="size.width"></span>
-              <input type="number" id="inW" value="16" min="1" max="999" inputmode="numeric">
-            </label>
-            <span class="times">×</span>
-            <label class="field">
-              <span data-i18n="size.height"></span>
-              <input type="number" id="inH" value="16" min="1" max="999" inputmode="numeric">
-            </label>
-          </div>
-          <div class="presets" id="presets">
-            <span class="presets-label" data-i18n="size.presets"></span>
-            <button data-size="8,8">8</button>
-            <button data-size="16,16">16</button>
-            <button data-size="32,32">32</button>
-            <button data-size="64,64">64</button>
-            <button data-size="128,128">128</button>
-            <button data-size="16,32">16×32</button>
-            <button data-size="32,64">32×64</button>
-            <button data-size="64,128">64×128</button>
-          </div>
+      <!-- 1. 顶部标题行 -->
+      <div class="pcp-top-header">
+        <canvas class="pcp-top-logo" id="topLogo" width="80" height="80"></canvas>
+        <div class="pcp-top-titles">
+          <h1 class="pcp-top-title" data-s="app_name">PixelColorPicker</h1>
+          <p class="pcp-top-sub" data-s="home_subtitle"></p>
         </div>
+        <div class="pcp-top-actions">
+          <button class="pcp-icon-btn" id="langBtn" title="Language">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <circle cx="12" cy="12" r="9"/>
+              <path d="M3 12h18M12 3a15 15 0 010 18M12 3a15 15 0 000 18"/>
+            </svg>
+          </button>
+          <button class="pcp-icon-btn" id="settingsBtn" title="Settings">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 008 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H2a2 2 0 110-4h.09A1.65 1.65 0 004.6 8a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V2a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H22a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+            </svg>
+          </button>
+        </div>
+      </div>
 
-        <div class="card">
-          <div class="card-head"><h2 data-i18n="image.title"></h2></div>
-          <div class="dropzone" id="dropzone" tabindex="0" role="button">
-            <input type="file" id="fileInput" accept="image/*" hidden>
-            <div class="dz-inner" id="dzInner">
-              <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.6">
-                <rect x="3" y="4" width="18" height="16" rx="2"/>
-                <circle cx="8.5" cy="9.5" r="1.5"/>
-                <path d="M21 16l-5-5-6 6-3-3-4 4"/>
-              </svg>
-              <p class="dz-title" data-i18n="image.drop"></p>
-              <p class="dz-sub" data-i18n="image.dropSub"></p>
-            </div>
-            <div class="dz-preview" id="dzPreview" hidden>
-              <canvas id="previewCanvas"></canvas>
-              <div class="dz-preview-meta">
-                <span id="previewMeta"></span>
-                <button class="btn tiny" id="changeImgBtn" data-i18n="image.change"></button>
+      <div class="pcp-section-gap"></div>
+
+      <!-- 2. 画布尺寸 + 常用尺寸（并排） -->
+      <div class="pcp-row">
+        <div class="pcp-glow-card">
+          <div class="pcp-glow-inner pcp-card-pad">
+            <div class="pcp-size-card">
+              <div class="pcp-size-head">
+                <span class="pcp-size-title" data-s="canvas_size"></span>
+              </div>
+              <div class="pcp-size-body">
+                <div class="pcp-size-item" id="sizeW">
+                  <span class="k" data-s="canvas_width"></span>
+                  <span class="v" id="sizeWVal">16</span>
+                </div>
+                <button class="pcp-swap-btn" id="swapBtn" title="swap">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M7 16H3m0 0l3-3m-3 3l3 3M17 8h4m0 0l-3-3m3 3l-3 3"/>
+                  </svg>
+                </button>
+                <div class="pcp-size-item" id="sizeH">
+                  <span class="k" data-s="canvas_height"></span>
+                  <span class="v" id="sizeHVal">16</span>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        <div class="card" id="cropCard" hidden>
-          <div class="card-head">
-            <h2 data-i18n="crop.title"></h2>
-            <span class="hint" data-i18n="crop.hint"></span>
-          </div>
-          <div class="crop-stage" id="cropStage">
-            <canvas id="cropCanvas"></canvas>
-          </div>
-          <div class="crop-controls">
-            <label class="slider-row">
-              <span data-i18n="crop.zoom"></span>
-              <input type="range" id="scaleRange" min="0.2" max="4" step="0.01" value="1">
-              <output id="scaleOut">1.00×</output>
-            </label>
-            <label class="slider-row">
-              <span data-i18n="crop.rotate"></span>
-              <input type="range" id="rotRange" min="-180" max="180" step="1" value="0">
-              <output id="rotOut">0°</output>
-            </label>
-            <div class="btn-row">
-              <button class="btn ghost sm" id="rotLeft" data-i18n="crop.rotLeft"></button>
-              <button class="btn ghost sm" id="rotRight" data-i18n="crop.rotRight"></button>
-              <button class="btn ghost sm" id="cropReset" data-i18n="crop.reset"></button>
+        <div class="pcp-glow-card">
+          <div class="pcp-glow-inner pcp-card-pad">
+            <div class="pcp-preset-card">
+              <div class="pcp-size-head">
+                <span class="pcp-size-title" data-s="common_sizes"></span>
+              </div>
+              <div class="pcp-preset-list" id="presetList"></div>
+              <button class="pcp-preset-more" id="moreSizeBtn" data-s="custom_size"></button>
             </div>
           </div>
         </div>
+      </div>
 
-        <div class="card">
-          <div class="card-head"><h2 data-i18n="algo.title"></h2></div>
-          <div class="algo-grid" id="algoGrid">
-            <label class="algo-card">
-              <input type="radio" name="algo" value="nearest" checked>
-              <span class="algo-body">
-                <b data-i18n="algo.nearest"></b>
-                <i data-i18n="algo.nearest.desc"></i>
-              </span>
-            </label>
-            <label class="algo-card">
-              <input type="radio" name="algo" value="bilinear">
-              <span class="algo-body">
-                <b data-i18n="algo.bilinear"></b>
-                <i data-i18n="algo.bilinear.desc"></i>
-              </span>
-            </label>
-            <label class="algo-card">
-              <input type="radio" name="algo" value="bicubic">
-              <span class="algo-body">
-                <b data-i18n="algo.bicubic"></b>
-                <i data-i18n="algo.bicubic.desc"></i>
-              </span>
-            </label>
-            <label class="algo-card">
-              <input type="radio" name="algo" value="lanczos">
-              <span class="algo-body">
-                <b data-i18n="algo.lanczos"></b>
-                <i data-i18n="algo.lanczos.desc"></i>
-              </span>
-            </label>
-            <label class="algo-card">
-              <input type="radio" name="algo" value="average">
-              <span class="algo-body">
-                <b data-i18n="algo.average"></b>
-                <i data-i18n="algo.average.desc"></i>
-              </span>
-            </label>
-            <label class="algo-card">
-              <input type="radio" name="algo" value="custom">
-              <span class="algo-body">
-                <b data-i18n="algo.custom"></b>
-                <i data-i18n="algo.custom.desc"></i>
-              </span>
-            </label>
-          </div>
+      <div class="pcp-section-gap"></div>
 
-          <div class="custom-panel" id="customPanel" hidden>
-            <div class="custom-inner">
-              <div class="custom-left">
-                <label class="field-block">
-                  <span data-i18n="algo.kernel"></span>
-                  <select id="customKernel">
-                    <option value="nearest" data-i18n="algo.nearest"></option>
-                    <option value="bilinear" selected data-i18n="algo.bilinear"></option>
-                    <option value="bicubic" data-i18n="algo.bicubic"></option>
-                    <option value="lanczos" data-i18n="algo.lanczos"></option>
-                  </select>
-                </label>
-                <label class="slider-row">
-                  <span data-i18n="algo.samples"></span>
-                  <input type="range" id="customSamples" min="1" max="8" step="1" value="4">
-                  <output id="customSamplesOut">4×</output>
-                </label>
-              </div>
-              <div class="custom-right">
-                <span class="preview-label" data-i18n="algo.preview"></span>
-                <canvas id="algoPreview"></canvas>
-              </div>
+      <!-- 3. 展示框 -->
+      <div class="pcp-glow-card" id="displayWrap">
+        <div class="pcp-glow-inner">
+          <div class="pcp-display-box" id="displayBox">
+            <div class="pcp-welcome" id="welcomeBox">
+              <div class="pcp-welcome-line" id="welcomeLine"></div>
+              <div class="pcp-welcome-line pcp-welcome-app" id="appLine"></div>
+              <div class="pcp-welcome-tap" id="tapHint" data-s="display_tap"></div>
             </div>
+            <canvas id="previewCanvas" hidden></canvas>
           </div>
         </div>
+      </div>
 
-        <button class="btn primary block" id="generateBtn">
-          <span data-i18n="btn.generate">生成像素画</span>
+      <!-- 3b. 操作行 -->
+      <div id="actionsArea" hidden>
+        <div class="pcp-section-gap" style="height:12px"></div>
+        <div class="pcp-actions-row" id="actionsRow">
+          <button class="pcp-action-btn" id="changeImgBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M7 16H3m0 0l3-3m-3 3l3 3M17 8h4m0 0l-3-3m3 3l-3 3"/>
+            </svg>
+            <span data-s="change_image"></span>
+          </button>
+          <button class="pcp-action-btn" id="recropBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M6 2v14a2 2 0 002 2h14M2 6h14a2 2 0 012 2v14"/>
+            </svg>
+            <span data-s="recrop"></span>
+          </button>
+          <button class="pcp-action-btn" id="gridBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <rect x="3" y="3" width="18" height="18" rx="2"/>
+              <path d="M9 3v18M15 3v18M3 9h18M3 15h18"/>
+            </svg>
+            <span data-s="grid_display"></span>
+          </button>
+          <button class="pcp-action-btn pcp-accent-warm" id="collapseBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 15l-6-6-6 6"/>
+            </svg>
+            <span data-s="tap_to_collapse"></span>
+          </button>
+        </div>
+      </div>
+
+      <div class="pcp-collapsed-row" id="collapsedRow" hidden>
+        <button class="pcp-expand-btn" id="expandBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M6 9l6 6 6-6"/>
+          </svg>
         </button>
       </div>
 
-      <!-- 右：结果 -->
-      <div class="col">
-        <div class="card sticky-result">
-          <div class="card-head">
-            <h2 data-i18n="result.title"></h2>
-            <span class="hint" id="resultMeta"></span>
+      <div class="pcp-section-gap"></div>
+
+      <!-- 4. 画布编辑 + 生成像素画（并排） -->
+      <div class="pcp-row">
+        <div class="pcp-glow-card">
+          <div class="pcp-glow-inner" style="height:100%">
+            <button class="pcp-duo-card" id="newCanvasBtn">
+              <span class="ico pcp-circle-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <path d="M12 20h9M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4z"/>
+                </svg>
+              </span>
+              <span class="t" data-s="new_blank_canvas"></span>
+              <span class="s" data-s="new_blank_hint"></span>
+            </button>
           </div>
-          <div class="result-stage" id="resultStage">
-            <div class="result-empty" id="resultEmpty" data-i18n="result.empty"></div>
-            <canvas id="resultCanvas" hidden></canvas>
-          </div>
-          <div class="btn-row wrap" id="resultActions" hidden>
-            <button class="btn primary sm" id="exportBtn" data-i18n="btn.export"></button>
-            <button class="btn ghost sm" id="copyAllBtn" data-i18n="btn.copyAll"></button>
-            <button class="btn ghost sm" id="editBtn" data-i18n="btn.edit"></button>
+        </div>
+        <div class="pcp-glow-card">
+          <div class="pcp-glow-inner" style="height:100%">
+            <button class="pcp-duo-card pcp-duo-generate" id="generateBtn">
+              <span class="ico">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M13 2L3 14h8l-1 8 10-12h-8l1-8z"/>
+                </svg>
+              </span>
+              <span class="t" data-s="generate"></span>
+              <span class="s" data-s="generate_hint"></span>
+            </button>
           </div>
         </div>
       </div>
 
-    </div>
-  </section>
+      <div class="pcp-section-gap"></div>
 
-  <!-- ================= 色板 ================= -->
-  <section class="panel" id="panel-palette">
-    <div class="card">
-      <div class="card-head">
-        <h2 data-i18n="palette.title"></h2>
-        <span class="hint" id="paletteMeta"></span>
+      <!-- 5. 微调控制 -->
+      <div class="pcp-glow-card">
+        <div class="pcp-glow-inner pcp-card-pad">
+          <div class="pcp-size-head">
+            <span class="pcp-size-title" data-s="fine_tune"></span>
+          </div>
+          <div class="pcp-finetune-grid">
+            <button class="pcp-ft-btn" data-ft="zoomin">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="7"/><path d="M11 8v6M8 11h6M20 20l-3.5-3.5"/>
+              </svg>
+              <span data-s="zoom_in"></span>
+            </button>
+            <button class="pcp-ft-btn" data-ft="zoomout">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="7"/><path d="M8 11h6M20 20l-3.5-3.5"/>
+              </svg>
+              <span data-s="zoom_out"></span>
+            </button>
+            <button class="pcp-ft-btn" data-ft="ccw">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 12a9 9 0 109-9 9 9 0 00-6.4 2.6L3 8"/><path d="M3 3v5h5"/>
+              </svg>
+              <span data-s="rotate_ccw"></span>
+            </button>
+            <button class="pcp-ft-btn" data-ft="cw">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 12a9 9 0 11-9-9 9 9 0 016.4 2.6L21 8"/><path d="M21 3v5h-5"/>
+              </svg>
+              <span data-s="rotate_cw"></span>
+            </button>
+            <button class="pcp-ft-btn" data-ft="panup">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+              <span data-s="editor_pan_x"></span>
+            </button>
+            <button class="pcp-ft-btn" data-ft="pandown">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>
+              <span data-s="editor_pan_y"></span>
+            </button>
+            <button class="pcp-ft-btn" data-ft="drag">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M2 12h20M12 2v20"/>
+              </svg>
+              <span data-s="drag_adjust"></span>
+            </button>
+            <button class="pcp-ft-btn" data-ft="reset">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>
+              </svg>
+              <span data-s="reset"></span>
+            </button>
+          </div>
+        </div>
       </div>
-      <div class="empty-state" id="paletteEmpty" data-i18n="palette.empty"></div>
+
+      <div class="pcp-section-gap"></div>
+
+      <!-- 6. 算法选择 -->
+      <div class="pcp-glow-card">
+        <div class="pcp-glow-inner pcp-card-pad">
+          <div class="pcp-size-head" style="margin-bottom:8px">
+            <span class="pcp-size-title" data-s="algorithm"></span>
+            <span class="pcp-hint" data-s="algo_hint" style="margin-left:auto"></span>
+          </div>
+          <div class="pcp-algo-scroll" id="algoScroll"></div>
+          <div class="pcp-custom-panel" id="customPanel" hidden>
+            <div class="pcp-label" data-s="custom_kernel_label"></div>
+            <div class="pcp-kernel-list" id="kernelList"></div>
+            <div class="pcp-label" data-s="custom_samples_label"></div>
+            <div class="pcp-slider-row">
+              <span data-s="custom_samples_sharp"></span>
+              <input type="range" id="samplesRange" min="1" max="8" step="1" value="4">
+              <output id="samplesOut">4×</output>
+              <span data-s="custom_samples_soft"></span>
+            </div>
+            <div class="pcp-custom-preview">
+              <canvas id="customPreview" width="144" height="144"></canvas>
+              <span class="pcp-hint" data-s="custom_samples_hint"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pcp-section-gap" style="height:20px"></div>
+
+      <!-- 7. 保存到相册 -->
+      <button class="pcp-save-btn" id="saveAlbumBtn" disabled data-s="save_to_album"></button>
+
+      <div style="height:24px"></div>
+    </div>
+  </div>
+
+  <!-- ============ 色板 ============ -->
+  <div class="pcp-page" id="page-palette">
+    <div class="pcp-scroll" id="paletteScroll">
+      <h2 class="pcp-page-title" data-s="palette_title"></h2>
+      <p class="pcp-page-hint" data-s="palette_hint"></p>
+      <div class="pcp-empty" id="paletteEmpty">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+          <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+        </svg>
+        <div class="t" data-s="empty_title"></div>
+        <div class="h" data-s="empty_hint"></div>
+      </div>
       <div id="paletteBody" hidden>
-        <div class="toolbar">
-          <button class="btn ghost sm" id="paletteCopyAll" data-i18n="palette.copyAll"></button>
-          <div class="lookup">
-            <span data-i18n="palette.lookup"></span>
-            <input type="number" id="lookupX" min="0" placeholder="X" inputmode="numeric">
-            <input type="number" id="lookupY" min="0" placeholder="Y" inputmode="numeric">
-            <button class="btn ghost sm" id="lookupGo" data-i18n="palette.lookupGo"></button>
+        <div class="pcp-palette-ruler-x" id="rulerX"></div>
+        <div class="pcp-palette-main">
+          <div class="pcp-palette-ruler-y" id="rulerY"></div>
+          <div class="pcp-palette-canvas-wrap">
+            <canvas id="paletteCanvas"></canvas>
           </div>
-          <span class="hint" data-i18n="palette.hint"></span>
         </div>
-        <div class="palette-scroll" id="paletteScroll">
-          <div class="palette-grid" id="paletteGrid"></div>
-        </div>
+        <div class="pcp-palette-tip" id="paletteTip">&nbsp;</div>
       </div>
     </div>
-  </section>
+  </div>
 
-  <!-- ================= 编码 ================= -->
-  <section class="panel" id="panel-code">
-    <div class="card">
-      <div class="card-head">
-        <h2 data-i18n="code.title"></h2>
-        <span class="hint" data-i18n="code.hint"></span>
+  <!-- ============ 编码 ============ -->
+  <div class="pcp-page" id="page-code">
+    <div class="pcp-scroll">
+      <h2 class="pcp-page-title" data-s="code_title"></h2>
+      <p class="pcp-page-hint" data-s="code_hint"></p>
+      <div class="pcp-empty" id="codeEmpty">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M16 18l6-6-6-6M8 6l-6 6 6 6"/>
+        </svg>
+        <div class="t" data-s="empty_title"></div>
+        <div class="h" data-s="empty_hint"></div>
       </div>
-      <div class="empty-state" id="codeEmpty" data-i18n="code.empty"></div>
-      <div id="codeBody" hidden>
-        <div class="code-list" id="codeList"></div>
-        <button class="btn ghost block" id="loadMoreCode" data-i18n="code.loadMore"></button>
-      </div>
+      <div class="pcp-code-list" id="codeList" hidden></div>
     </div>
-  </section>
+  </div>
 
-  <!-- ================= 画布编辑 ================= -->
-  <section class="panel" id="panel-editor">
-    <div class="card">
-      <div class="card-head">
-        <h2 data-i18n="editor.title"></h2>
-        <span class="hint" id="editorMeta"></span>
-      </div>
-      <div class="editor-toolbar">
-        <div class="seg" id="toolSeg">
-          <button class="active" data-tool="brush" data-i18n="editor.brush"></button>
-          <button data-tool="eraser" data-i18n="editor.eraser"></button>
-          <button data-tool="eyedropper" data-i18n="editor.eyedropper"></button>
-          <button data-tool="fill" data-i18n="editor.fill"></button>
-        </div>
-        <label class="color-field">
-          <span data-i18n="editor.color"></span>
-          <input type="color" id="brushColor" value="#ffffff">
-        </label>
-        <button class="btn ghost sm" id="undoBtn" data-i18n="editor.undo"></button>
-        <button class="btn ghost sm" id="redoBtn" data-i18n="editor.redo"></button>
-        <button class="btn ghost sm" id="clearBtn" data-i18n="editor.clear"></button>
-        <button class="btn ghost sm" id="importResultBtn" data-i18n="editor.fromResult"></button>
-      </div>
-      <div class="editor-stage" id="editorStage">
-        <canvas id="editorCanvas"></canvas>
-      </div>
-      <div class="btn-row wrap">
-        <button class="btn primary sm" id="saveWorkBtn" data-i18n="editor.save"></button>
-      </div>
-    </div>
+  <!-- ============ 关于 ============ -->
+  <div class="pcp-page" id="page-about">
+    <div class="pcp-scroll" id="aboutScroll"></div>
+  </div>
 
-    <div class="card">
-      <div class="card-head"><h2 data-i18n="editor.history"></h2></div>
-      <div class="empty-state" id="historyEmpty" data-i18n="editor.historyEmpty"></div>
-      <div class="history-grid" id="historyGrid"></div>
-    </div>
-  </section>
+  <!-- ============ 底部导航 ============ -->
+  <nav class="pcp-bottom-nav" id="bottomNav">
+    <button class="pcp-nav-item is-active" data-tab="home">
+      <span class="pcp-nav-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">
+          <path d="M3 10.5L12 3l9 7.5V20a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1z"/>
+        </svg>
+      </span>
+      <span class="pcp-nav-label" data-s="tab_home"></span>
+    </button>
+    <button class="pcp-nav-item" data-tab="palette">
+      <span class="pcp-nav-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">
+          <circle cx="12" cy="12" r="9"/>
+          <circle cx="9" cy="9" r="1.2" fill="currentColor" stroke="none"/>
+          <circle cx="15" cy="9" r="1.2" fill="currentColor" stroke="none"/>
+          <circle cx="9" cy="15" r="1.2" fill="currentColor" stroke="none"/>
+          <circle cx="15" cy="15" r="1.2" fill="currentColor" stroke="none"/>
+        </svg>
+      </span>
+      <span class="pcp-nav-label" data-s="tab_palette"></span>
+    </button>
+    <button class="pcp-nav-item" data-tab="code">
+      <span class="pcp-nav-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">
+          <path d="M9 18l-6-6 6-6M15 6l6 6-6 6"/>
+        </svg>
+      </span>
+      <span class="pcp-nav-label" data-s="tab_code"></span>
+    </button>
+    <button class="pcp-nav-item" data-tab="about">
+      <span class="pcp-nav-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">
+          <circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.6"/>
+        </svg>
+      </span>
+      <span class="pcp-nav-label" data-s="tab_about"></span>
+    </button>
+  </nav>
 
-  <!-- ================= 关于 ================= -->
-  <section class="panel" id="panel-about">
-    <div class="card prose">
-      <h2 data-i18n="about.title"></h2>
-      <p data-i18n="about.intro"></p>
+</div>
 
-      <h3 data-i18n="about.core"></h3>
-      <ul class="feature-list">
-        <li data-i18n="about.feature1"></li>
-        <li data-i18n="about.feature2"></li>
-        <li data-i18n="about.feature3"></li>
-        <li data-i18n="about.feature4"></li>
-        <li data-i18n="about.feature5"></li>
-        <li data-i18n="about.feature6"></li>
-      </ul>
+<!-- 弹窗层 -->
+<div class="pcp-dialog-mask" id="dialogMask" hidden>
+  <div class="pcp-dialog" id="dialogBox"></div>
+</div>
 
-      <h3 data-i18n="about.compat"></h3>
-      <p data-i18n="about.compatBody"></p>
+<div class="pcp-toast" id="toast"></div>
 
-      <h3 data-i18n="about.links"></h3>
-      <ul class="link-list">
-        <li><a href="https://github.com/YYGYLTY/PixelColorPicker" target="_blank" rel="noopener" data-i18n="about.repo"></a></li>
-        <li><a href="https://github.com/YYGYLTY/PixelColorPicker/releases" target="_blank" rel="noopener" data-i18n="about.releases"></a></li>
-        <li><span data-i18n="about.license"></span></li>
-      </ul>
-    </div>
-  </section>
+<!-- 隐藏的文件选择 -->
+<input type="file" id="fileInput" accept="image/*" hidden>
 
-</main>
-
-<div class="toast" id="toast"></div>
-
+<!-- 脚本 -->
+<script src="js/i18n_data.js"></script>
 <script src="js/codec.js"></script>
 <script src="js/pixelator.js"></script>
-<script src="js/i18n.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>
