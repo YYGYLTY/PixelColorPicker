@@ -123,7 +123,7 @@
   border: 1px solid var(--pcp-InputBorder);
   display: flex;
   align-items: center;
-  padding: 0 4px;
+  padding: 0 6px;
   cursor: pointer;
 }
 
@@ -154,9 +154,10 @@
 
 /* 交换按钮：16dp，左右 2dp */
 .pcp-swap-btn {
-  width: 16px;
-  height: 16px;
-  margin: 0 2px;
+  width: 18px;
+  height: 18px;
+  /* [修复] 原 2px 太窄，⇄ 会贴到 H 框边框上 */
+  margin: 0 7px;
   border: 0;
   background: transparent;
   color: var(--pcp-TextPrimary);
