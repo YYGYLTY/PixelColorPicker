@@ -97,6 +97,7 @@
     // 编辑器
     editPixels: null, editW: 16, editH: 16, editTool: 'brush',
     editColor: 0xFFFFFFFF | 0,
+    customPalette: [],   // [对齐 App] 独立的用户自选色（最多 24），不从作品提取
     undo: [], redo: [],
 
     // 其它
@@ -461,30 +462,48 @@
    * 绘制展示框。
    * @param {boolean} fast 拖动中用低分辨率快速重算（256），否则 1024
    */
+  /** [对齐 App] ImageDisplayBox：容器高度 = 宽 × (canvasH/canvasW)，clamp 40~400 且 ≤屏高60%。 */
+  function updateDisplayBoxHeight() {
+    var box = $('displayBox');
+    if (!box) return;
+    var w = box.clientWidth;
+    if (w <= 0) return;
+    var ratio = VM.canvasHeight / VM.canvasWidth;
+    var maxH = Math.min(400, window.innerHeight * 0.6);
+    var h = clamp(w * ratio, 40, maxH);
+    box.style.height = Math.round(h) + 'px';
+  }
+
   function drawPreview(fast) {
     var cv = $('previewCanvas');
+    var box = $('displayBox');
     if (!VM.sourceBitmap) { cv.hidden = true; return; }
     cv.hidden = false;
+    updateDisplayBoxHeight();
 
-    // [对齐 App] isPixelated=false 时显示原图（未像素化），点「生成」后才像素化
+    var boxW = box ? box.clientWidth : 0;
+    var boxH = box ? box.clientHeight : 0;
+    if (boxW <= 0 || boxH <= 0) { requestAnimationFrame(function(){ drawPreview(fast); }); return; }
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+    // ---------- 未像素化：原图 + 变换矩阵（同 ImageDisplayBox 的 else if 分支） ----------
     if (!VM.isPixelated) {
-      var tmp = toCanvas(VM.sourceBitmap, VM.sourceW, VM.sourceH);
-      cv.width = VM.sourceW;
-      cv.height = VM.sourceH;
-      cv.getContext('2d').drawImage(tmp, 0, 0);
-      cv.style.width = '100%';
-      cv.style.height = 'auto';
-      cv.style.maxWidth = '100%';
-      cv.style.maxHeight = '100%';
-      cv.style.aspectRatio = VM.sourceW + ' / ' + VM.sourceH;
+      var cw = boxW, ch = boxH;
+      cv.width = Math.round(cw * dpr);
+      cv.height = Math.round(ch * dpr);
+      cv.style.width = cw + 'px';
+      cv.style.height = ch + 'px';
       cv.style.transform = '';
+      var ctx0 = cv.getContext('2d');
+      ctx0.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx0.clearRect(0, 0, cw, ch);
+      var tmp0 = toCanvas(VM.sourceBitmap, VM.sourceW, VM.sourceH);
+      ctx0.drawImage(tmp0, 0, 0, cw, ch);
       return;
     }
 
-    // 预览直接用画布尺寸渲染（CSS 放大后 pixelated，保持锐利）
-    var pw = VM.canvasWidth;
-    var ph = VM.canvasHeight;
-    // [对齐 App] PREVIEW_MAX_EDGE = 1024；拖动中用 256 保证跟手
+    // ---------- 已像素化：先算采样尺寸（同 PREVIEW_MAX_EDGE） ----------
+    var pw = VM.canvasWidth, ph = VM.canvasHeight;
     var maxEdge = fast ? 256 : 1024;
     var mx = Math.max(pw, ph);
     if (mx > maxEdge) {
@@ -492,7 +511,6 @@
       pw = Math.max(1, Math.round(pw * k));
       ph = Math.max(1, Math.round(ph * k));
     }
-
     var out;
     var ES = effectiveSource();
     try {
@@ -505,42 +523,77 @@
       });
     } catch (e) { return; }
 
-    // [对齐 App] 放大后绘制，保证网格线是 1px 真实像素
-    var mult = Math.max(1, Math.min(8, Math.floor(1024 / Math.max(pw, ph))));
-    cv.width = pw * mult;
-    cv.height = ph * mult;
+    // ---------- contentRect：按图片比例 contain（同 fitRect） ----------
+    // 注意：App 的 contentRect 用 croppedBitmap 的宽高比
+    var imgAspect = VM.sourceW / VM.sourceH;
+    var cw2, ch2, cx0, cy0;
+    if (boxW / boxH > imgAspect) {
+      ch2 = boxH; cw2 = boxH * imgAspect;
+    } else {
+      cw2 = boxW; ch2 = boxW / imgAspect;
+    }
+    cx0 = (boxW - cw2) / 2;
+    cy0 = (boxH - ch2) / 2;
+
+    cv.width = Math.round(boxW * dpr);
+    cv.height = Math.round(boxH * dpr);
+    cv.style.width = boxW + 'px';
+    cv.style.height = boxH + 'px';
+    cv.style.transform = '';
     var ctx = cv.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, boxW, boxH);
     ctx.imageSmoothingEnabled = false;
+
+    // 先画棋盘格底纹（同 drawCheckerFill）
+    drawCheckerRect(ctx, cx0, cy0, cw2, ch2, VM.canvasWidth, VM.canvasHeight);
+
+    // 再把像素画拉伸铺满 contentRect（paintNearest）
     var tmp = document.createElement('canvas');
     tmp.width = pw; tmp.height = ph;
     tmp.getContext('2d').putImageData(toImageData(out, pw, ph), 0, 0);
-    ctx.drawImage(tmp, 0, 0, cv.width, cv.height);
+    ctx.drawImage(tmp, cx0, cy0, cw2, ch2);
 
-    // [对齐 App] ImageDisplayBox 网格覆盖：画布<=160 且格子>=2.5px
-    if (VM.gridEnabled && pw <= 160 && ph <= 160) {
-      var cellW = cv.width / pw;
-      var cellH = cv.height / ph;
+    // 网格覆盖（同 ImageDisplayBox 的网格逻辑）
+    if (VM.gridEnabled && VM.canvasWidth <= 160 && VM.canvasHeight <= 160) {
+      var cellW = cw2 / VM.canvasWidth;
+      var cellH = ch2 / VM.canvasHeight;
       if (cellW >= 2.5 && cellH >= 2.5) {
-        ctx.strokeStyle = 'rgba(0,0,0,0.33)'; // 0x55000000
+        ctx.strokeStyle = 'rgba(0,0,0,0.33)';
         ctx.lineWidth = 1;
-        for (var gi = 0; gi <= pw; gi++) {
-          var gx = Math.round(gi * cellW) + 0.5;
-          ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, cv.height); ctx.stroke();
+        for (var gi = 0; gi <= VM.canvasWidth; gi++) {
+          var gx = cx0 + Math.round(gi * cellW) + 0.5;
+          ctx.beginPath(); ctx.moveTo(gx, cy0); ctx.lineTo(gx, cy0 + ch2); ctx.stroke();
         }
-        for (var gj = 0; gj <= ph; gj++) {
-          var gy = Math.round(gj * cellH) + 0.5;
-          ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(cv.width, gy); ctx.stroke();
+        for (var gj = 0; gj <= VM.canvasHeight; gj++) {
+          var gy = cy0 + Math.round(gj * cellH) + 0.5;
+          ctx.beginPath(); ctx.moveTo(cx0, gy); ctx.lineTo(cx0 + cw2, gy); ctx.stroke();
         }
       }
     }
-    cv.style.width = '100%';
-    cv.style.height = 'auto';
-    cv.style.maxWidth = '100%';
-    cv.style.maxHeight = '100%';
-    // [对齐 App] ImageDisplayBox 用 fitRect(按图片比例 contain)：
-    // 展示框始终完整显示整张图，像素画铺满该区域（而不是按画布比例拉伸）
-    cv.style.aspectRatio = VM.sourceW + ' / ' + VM.sourceH;
-    cv.style.objectFit = 'contain';
+  }
+
+  /** 棋盘格底纹（同 drawCheckerFill）。 */
+  function drawCheckerRect(ctx, x, y, w, h, gw, gh) {
+    var cellW = w / gw, cellH = h / gh;
+    ctx.fillStyle = '#9E9E9E';
+    ctx.fillRect(x, y, w, h);
+    if (cellW < 2.5 || cellH < 2.5) return;
+    if (gw * gh > 6000) return;
+    var halfW = cellW / 2, halfH = cellH / 2;
+    for (var gy = 0; gy < gh; gy++) {
+      for (var gx = 0; gx < gw; gx++) {
+        var left = x + gx * cellW;
+        var top = y + gy * cellH;
+        for (var dy = 0; dy < 2; dy++) {
+          for (var dx = 0; dx < 2; dx++) {
+            var light = ((gx * 2 + dx) + (gy * 2 + dy)) % 2 === 0;
+            ctx.fillStyle = light ? '#FFFFFF' : '#CCCCCC';
+            ctx.fillRect(left + dx * halfW, top + dy * halfH, halfW, halfH);
+          }
+        }
+      }
+    }
   }
 
   // ==================== 生成 ====================
@@ -800,6 +853,7 @@
       syncPalBars();
     }, { passive: true });
     window.addEventListener('resize', function () {
+      if (VM.sourceBitmap) drawPreview();
       if (VM.pixelArt && !$('paletteBody').hidden) {
         drawPaletteView(); renderPalRulers(); syncPalBars();
       }
@@ -1320,6 +1374,7 @@
       var winH = cr.h / VM.scale;
       var cx0 = cr.x + cr.w / 2;
       var cy0 = cr.y + cr.h / 2;
+      // 窗口不能超出原图：可移动范围 = 原图边界
       var minCx = Math.min(cx0, winW / 2);
       var maxCx = Math.max(cx0, VM.originalW - winW / 2);
       var minCy = Math.min(cy0, winH / 2);
@@ -1328,6 +1383,7 @@
         winW: winW, winH: winH, baseW: cr.w, baseH: cr.h,
         xMin: (minCx - cx0) / cr.w, xMax: (maxCx - cx0) / cr.w,
         yMin: (minCy - cy0) / cr.h, yMax: (maxCy - cy0) / cr.h,
+        canSeeWhole: true,
       };
     }
     var srcW = VM.sourceW, srcH = VM.sourceH;
@@ -1368,7 +1424,13 @@
   /** [对齐 App] dragAdjustZoom：缩放采样区域并重新约束 offset。 */
   function dragAdjustZoom(factor) {
     if (!VM.sourceBitmap) return;
-    var ns = clamp(VM.scale * factor, 0.5, 12);
+    // [C] 下限动态：缩到能看完整张原图（窗口 = 原图）
+    var minScale = 0.05;
+    var cr0 = VM.cropRect;
+    if (VM.originalBitmap && cr0 && cr0.w > 0 && cr0.h > 0) {
+      minScale = Math.min(cr0.w / VM.originalW, cr0.h / VM.originalH);
+    }
+    var ns = clamp(VM.scale * factor, minScale, 12);
     if (ns === VM.scale) return;
     VM.scale = ns;
     var L = dragLimits();
@@ -1739,50 +1801,61 @@
   }
 
   /** [对齐 App] EditorScreen 的调色板：从当前作品提取颜色 + 「+」添加。 */
+  /** [对齐 App] EditorPaletteRow：+ 按钮（36dp）+ 最多 24 个自选色，横向滚动。
+      customPalette 是独立的用户自选色，不从作品提取（否则 999×999 会卡死）。 */
   function renderEditorPalette() {
     var box = $('edPalette');
-    if (!box || !VM.editPixels) return;
+    if (!box) return;
     box.innerHTML = '';
 
-    var seen = {};
-    for (var i = 0; i < VM.editPixels.length; i++) {
-      var c = VM.editPixels[i];
-      if (((c >>> 24) & 0xFF) === 0) continue;
-      seen[c >>> 0] = c;
-    }
-    var colors = Object.keys(seen).map(Number).sort(function (a, b) { return a - b; });
-
-    // 「+」添加颜色
+    // 「+」添加当前颜色
     var add = document.createElement('button');
     add.className = 'pcp-pal-add';
-    add.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>';
+    add.innerHTML = '<svg viewBox="0 0 24 24" fill="none"><path fill="currentColor" stroke="none" d="M19,13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>';
     add.onclick = function () {
-      var inp = document.createElement('input');
-      inp.type = 'color';
-      inp.value = '#' + ((VM.editColor >>> 0) & 0xFFFFFF).toString(16).padStart(6, '0');
-      inp.style.cssText = 'position:fixed;left:-9999px';
-      document.body.appendChild(inp);
-      inp.onchange = function () {
-        VM.editColor = Codec.parseHex(inp.value);
-        document.body.removeChild(inp);
-        renderEditorPalette();
-      };
-      inp.click();
+      var c = VM.editColor;
+      var arr = VM.customPalette;
+      var i = arr.indexOf(c);
+      if (i >= 0) arr.splice(i, 1);
+      arr.unshift(c);
+      while (arr.length > 24) arr.pop();
+      saveCustomPalette();
+      renderEditorPalette();
     };
     box.appendChild(add);
 
-    colors.forEach(function (cv) {
+    (VM.customPalette || []).forEach(function (c) {
       var b = document.createElement('button');
-      var hex = '#' + ((cv >>> 0) & 0xFFFFFF).toString(16).padStart(6, '0');
-      b.className = 'pcp-pal-color' + (VM.editColor === cv ? ' is-active' : '');
+      var hex = '#' + ((c >>> 0) & 0xFFFFFF).toString(16).padStart(6, '0');
+      var sel = (c === VM.editColor) || ((c >>> 0) === (VM.editColor >>> 0));
+      b.className = 'pcp-pal-color' + (sel ? ' is-active' : '');
       b.style.background = hex;
       b.title = hex;
       b.onclick = function () {
-        VM.editColor = cv;
+        VM.editColor = c;
         renderEditorPalette();
+        renderEdInfo();
       };
+      // 长按删除（同 combinedClickable 的 onLongClick）
+      var timer = null;
+      b.addEventListener('pointerdown', function () {
+        timer = setTimeout(function () {
+          timer = null;
+          var i = VM.customPalette.indexOf(c);
+          if (i >= 0) { VM.customPalette.splice(i, 1); saveCustomPalette(); renderEditorPalette(); }
+        }, 600);
+      });
+      ['pointerup', 'pointerleave', 'pointercancel'].forEach(function (ev) {
+        b.addEventListener(ev, function () { if (timer) { clearTimeout(timer); timer = null; } });
+      });
       box.appendChild(b);
     });
+  }
+
+  function saveCustomPalette() {
+    try {
+      localStorage.setItem('pcp.edPalette', (VM.customPalette || []).join(','));
+    } catch (e) {}
   }
 
   /** 选颜色（自定义）：App 是 ColorSheet，网页用原生取色器。 */
@@ -2768,6 +2841,11 @@
       var gc = localStorage.getItem('pcp.genCount');
       if (gc) VM.genCount = parseInt(gc, 10) || 0;
       // [对齐 App] 恢复自定义常用尺寸与使用历史
+      var ep = localStorage.getItem('pcp.edPalette') || '';
+      if (ep) {
+        VM.customPalette = ep.split(',').map(function (x) { return parseInt(x, 10); })
+          .filter(function (x) { return !isNaN(x); });
+      }
       VM.customPreset0 = localStorage.getItem('pcp.preset_0') || '';
       VM.customPreset1 = localStorage.getItem('pcp.preset_1') || '';
       var hist = localStorage.getItem('pcp.size_history') || '';
@@ -2888,6 +2966,7 @@
     if (palSb) palSb.onclick = function () { showPaletteSearch(); };
     var palRf = $('palRefreshBtn');
     if (palRf) palRf.onclick = function () {
+      VM.palHi = null;
       renderPalette();
       toast(S('action_done'));
     };
