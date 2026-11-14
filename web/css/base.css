@@ -153,8 +153,8 @@ body {
   overflow-y: auto;
   overflow-x: hidden;
   padding: 16px;
-  /* 底部留出悬浮导航的高度（导航 ~76px + 底部 16px + 余量） */
-  padding-bottom: 150px;
+  /* 底部留出悬浮导航的高度（导航 ~72px + 底部 12px + 余量） */
+  padding-bottom: 108px;
   -webkit-overflow-scrolling: touch;
 }
 
