@@ -232,7 +232,7 @@
 
 /* ---------- 3. 展示框 ---------- */
 .pcp-display-box {
-  touch-action: none; /* 拖动调整时不要触发页面滚动 */
+
   position: relative;
   border-radius: 16px;
   overflow: hidden;
@@ -242,6 +242,12 @@
   background: var(--pcp-BgCardSecondary);
   animation: displayExpand 0.42s var(--pcp-decelerate) both;
 }
+
+/* 仅开启「拖拽调整」时才禁用页面滚动，否则预览区无法上下滑动 */
+.pcp-display-box.is-drag {
+  touch-action: none;
+}
+
 
 @keyframes displayExpand {
   from { transform: scale(0.97); opacity: 0.6; }
@@ -511,7 +517,9 @@
 .pcp-pill {
   height: 32px;
   border-radius: 16px;
-  background: #25283B;
+  /* [对齐 App] PillButton 用的是 PcpColors.BgCardSecondary（双色变量），
+     原先硬编码 #25283B 导致浅色主题下还是黑胶囊 */
+  background: var(--pcp-BgCardSecondary);
   border: 1px solid var(--pcp-TextSecondary);
   color: var(--pcp-TextPrimary);
   font-family: inherit;
