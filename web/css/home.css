@@ -675,11 +675,16 @@
   height: 52px;
   border-radius: 16px;
   background: transparent;
+  /* [对齐 App] OutlinedButton：边框 = outline，文字 = primary（主题紫），16sp Medium */
   border: 1px solid var(--pcp-BorderInput);
-  color: var(--pcp-TextPrimary);
+  color: var(--pcp-Primary);
   font-family: inherit;
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 16px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   cursor: pointer;
   transition: border-color 0.15s, transform 0.1s;
 }
