@@ -663,6 +663,25 @@
   background: var(--pcp-AlgorithmSelectedBg);
 }
 
+/* 自定义尺寸对话框（复刻 CustomSizeDialog：W × H 两个输入框） */
+.pcp-custom-size-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.pcp-custom-size-row .pcp-size-input {
+  flex: 1 1 0;
+  min-width: 0;
+  margin-bottom: 0;
+}
+.pcp-custom-x {
+  flex: none;
+  color: var(--pcp-TextSecondary);
+  font-size: 15px;
+  line-height: 1;
+}
+
 /* 历史记录 */
 .pcp-history-grid {
   display: grid;
