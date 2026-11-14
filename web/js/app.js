@@ -484,6 +484,10 @@
   // ==================== 生成 ====================
   function generate() {
     if (!VM.sourceBitmap) { toast(S('pick_first')); return; }
+    // [对齐 App] 首次生成时先重置变换，再按新参数采样
+    if (!VM.isPixelated) {
+      VM.scale = 1; VM.offsetX = 0; VM.offsetY = 0; VM.rotation = 0;
+    }
     var t0 = performance.now();
     var out;
     try {
@@ -498,9 +502,6 @@
     } catch (e) { toast('生成失败：' + e.message); return; }
 
     // [对齐 App] 首次生成时重置变换（已生成过则保留当前缩放/平移/旋转）
-    if (!VM.isPixelated) {
-      VM.scale = 1; VM.offsetX = 0; VM.offsetY = 0; VM.rotation = 0;
-    }
     VM.isPixelated = true;
 
     VM.pixelArt = out;
@@ -513,6 +514,7 @@
     $('saveAlbumBtn').disabled = false;
     renderPalette();
     renderCodes();
+    drawPreview(); // [修复] 生成后必须重绘，否则展示框停在原图
     toast(S('generated'));
   }
 
@@ -885,12 +887,9 @@
       if (!dragging) return;
       e.preventDefault();
       var rect = box.getBoundingClientRect();
-      var dx = (e.clientX - sx) / rect.width;
-      var dy = (e.clientY - sy) / rect.height;
-      // [对齐 App] panByPreview：偏移限制在 ±2
-      VM.offsetX = clamp(sox + dx, -2, 2);
-      VM.offsetY = clamp(soy + dy, -2, 2);
-      // [性能] 拖动中用 256 分辨率快速重算，跟手且画面实时变化
+      // [对齐 App] dragAdjustBy：增量式像素位移，边界动态计算
+      dragAdjustBy(e.clientX - sx, e.clientY - sy, rect.width, rect.height);
+      sx = e.clientX; sy = e.clientY;
       drawPreview(true);
     });
     function endDrag(e) {
@@ -908,9 +907,59 @@
     box.addEventListener('wheel', function (e) {
       if (!VM.sourceBitmap) return;
       e.preventDefault();
-      VM.scale = clamp(VM.scale * (e.deltaY > 0 ? 0.92 : 1.08), 1, 12);
-      drawPreview();
+      // [对齐 App] dragAdjustZoom：缩放后重新约束 offset
+      dragAdjustZoom(e.deltaY > 0 ? 0.92 : 1.08);
+      drawPreview(true);
     }, { passive: false });
+  }
+
+  // ==================== 拖拽调整（对应 MainViewModel.dragAdjustBy / dragAdjustZoom） ====================
+  /** 计算采样窗口与可移动范围（cover 语义，与 App 完全一致）。 */
+  function dragLimits() {
+    var srcW = VM.sourceW, srcH = VM.sourceH;
+    var targetRatio = VM.canvasWidth / VM.canvasHeight;
+    var maxWinW, maxWinH;
+    if (srcW / srcH > targetRatio) { maxWinH = srcH; maxWinW = srcH * targetRatio; }
+    else { maxWinW = srcW; maxWinH = srcW / targetRatio; }
+    var winW = maxWinW / VM.scale;
+    var winH = maxWinH / VM.scale;
+    return {
+      winW: winW, winH: winH,
+      limX: Math.max(0, (srcW - winW) / 2 / srcW),
+      limY: Math.max(0, (srcH - winH) / 2 / srcH),
+    };
+  }
+
+  /** [对齐 App] dragAdjustBy：像素位移 → offset，内容跟随手指。 */
+  function dragAdjustBy(dxPx, dyPx, boxW, boxH) {
+    if (!VM.sourceBitmap || boxW <= 0 || boxH <= 0) return;
+    var L = dragLimits();
+    // 完全没有可移动空间（图片已完整覆盖采样窗口）：提示先放大
+    if (L.limX <= 0 && L.limY <= 0) {
+      var now = Date.now();
+      if (now - (VM._dragHintAt || 0) > 2500) {
+        VM._dragHintAt = now;
+        toast(S('drag_zoom_first_hint'));
+      }
+      return;
+    }
+    VM.offsetX = clamp(VM.offsetX, -L.limX, L.limX);
+    VM.offsetY = clamp(VM.offsetY, -L.limY, L.limY);
+    var dOffX = -(dxPx / boxW) * (L.winW / VM.sourceW);
+    var dOffY = -(dyPx / boxH) * (L.winH / VM.sourceH);
+    VM.offsetX = clamp(VM.offsetX + dOffX, -L.limX, L.limX);
+    VM.offsetY = clamp(VM.offsetY + dOffY, -L.limY, L.limY);
+  }
+
+  /** [对齐 App] dragAdjustZoom：缩放采样区域并重新约束 offset。 */
+  function dragAdjustZoom(factor) {
+    if (!VM.sourceBitmap) return;
+    var ns = clamp(VM.scale * factor, 1, 12);
+    if (ns === VM.scale) return;
+    VM.scale = ns;
+    var L = dragLimits();
+    VM.offsetX = clamp(VM.offsetX, -L.limX, L.limX);
+    VM.offsetY = clamp(VM.offsetY, -L.limY, L.limY);
   }
 
   // ==================== 操作行 ====================
@@ -924,6 +973,8 @@
     $('actionsRow').hidden = !VM.homeActionsExpanded;
     $('collapsedRow').hidden = VM.homeActionsExpanded;
     $('gridBtn').classList.toggle('is-on', VM.gridEnabled);
+    var db = $('displayBox');
+    if (db) db.classList.toggle('is-drag', !!VM.dragAdjustEnabled);
   }
 
   // ==================== 对话框 ====================
@@ -1172,12 +1223,20 @@
   }
 
   // ==================== 编辑器 ====================
-  function openEditor() {
-    if (!VM.editPixels) {
+  function openEditor(blank) {
+    // [对齐 App] MainViewModel.openEditor：优先加载已生成的像素画，
+    // 没有才用空白画布。原先永远新建空白，导致「画布编辑」打开的是空图。
+    if (blank || !VM.pixelArt) {
       VM.editW = VM.canvasWidth;
       VM.editH = VM.canvasHeight;
       VM.editPixels = new Int32Array(VM.editW * VM.editH).fill(0);
+    } else {
+      VM.editW = VM.artW;
+      VM.editH = VM.artH;
+      VM.editPixels = new Int32Array(VM.pixelArt);
     }
+    VM.undo = [];
+    VM.redo = [];
 
     var sub = document.createElement('div');
     sub.className = 'pcp-subpage';
@@ -1838,6 +1897,7 @@
     // 拖拽调整胶囊
     $('dragPill').onclick = function () {
       VM.dragAdjustEnabled = !VM.dragAdjustEnabled;
+      updateActionsUI();
       this.classList.toggle('is-on', VM.dragAdjustEnabled);
     };
 
@@ -1898,7 +1958,7 @@
     // 生成 / 画布编辑
     $('generateBtn').onclick = generate;
     $('saveAlbumBtn').onclick = saveAlbum;
-    $('newCanvasBtn').onclick = openEditor;
+    $('newCanvasBtn').onclick = function () { openEditor(true); };
 
     // 设置
     $('settingsBtn').onclick = openSettings;
