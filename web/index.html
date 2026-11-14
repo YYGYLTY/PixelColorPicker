@@ -305,12 +305,22 @@
         <div class="h" data-s="empty_hint"></div>
       </div>
       <div id="paletteBody" hidden>
-        <div class="pcp-palette-ruler-x" id="rulerX"></div>
-        <div class="pcp-palette-main">
-          <div class="pcp-palette-ruler-y" id="rulerY"></div>
-          <div class="pcp-palette-canvas-wrap">
+        <!-- 横向快速滑块（同 PaletteGrid 的 QuickBar） -->
+        <div class="pcp-pal-hbar" id="palHBar"><div class="pcp-qb-track"></div><div class="pcp-qb-thumb" id="palHThumb"></div></div>
+        <!-- X 标尺（左侧留 28px 给 Y 标尺） -->
+        <div class="pcp-pal-rx-row">
+          <div class="pcp-pal-rx-pad"></div>
+          <div class="pcp-pal-rx" id="rulerX"></div>
+          <div class="pcp-pal-rx-pad"></div>
+        </div>
+        <!-- 主体：Y 标尺 + 网格视口 + 纵向滑块 -->
+        <div class="pcp-pal-main">
+          <div class="pcp-pal-ry" id="rulerY"></div>
+          <div class="pcp-pal-view" id="palView">
             <canvas id="paletteCanvas"></canvas>
+            <div class="pcp-pal-spacer" id="palSpacer"></div>
           </div>
+          <div class="pcp-pal-vbar" id="palVBar"><div class="pcp-qb-track"></div><div class="pcp-qb-thumb" id="palVThumb"></div></div>
         </div>
         <div class="pcp-palette-tip" id="paletteTip">&nbsp;</div>
       </div>
