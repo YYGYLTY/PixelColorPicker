@@ -72,6 +72,9 @@
     sizeHistory: {},
 
     // 源图
+    originalBitmap: null, // 选图时的原图（裁剪页使用，可反复重新裁剪）
+    originalW: 0,
+    originalH: 0,
     sourceBitmap: null,
     sourceW: 0,
     sourceH: 0,
@@ -384,6 +387,9 @@
       for (var i = 0, j = 0; i < px.length; i++, j += 4) {
         px[i] = ((data[j + 3] << 24) | (data[j] << 16) | (data[j + 1] << 8) | data[j + 2]) | 0;
       }
+      VM.originalBitmap = px;
+      VM.originalW = w;
+      VM.originalH = h;
       VM.sourceBitmap = px;
       VM.sourceW = w;
       VM.sourceH = h;
@@ -396,7 +402,8 @@
       VM.homeActionsExpanded = true;
       updateActionsUI();
       drawPreview();
-      if (VM.autoGenerate) generate();
+      // [对齐 App] 选图后先进入裁剪页（CropScreen），确认后才进入首页
+      openCrop();
     };
     img.onerror = function () { URL.revokeObjectURL(url); toast('图片加载失败'); };
     img.src = url;
@@ -1394,6 +1401,193 @@
     }, 'image/png');
   }
 
+
+  // ==================== 裁剪页（对应 CropScreen.kt） ====================
+  /**
+   * 显示原图 + 固定裁剪框（按画布比例），拖动/缩放图片调整构图，
+   * 确认后从原图提取裁剪区域的像素并替换 sourceBitmap。
+   */
+  function openCrop() {
+    if (!VM.originalBitmap) return;
+    var oldSub = document.getElementById('subCrop');
+    if (oldSub) oldSub.remove();
+
+    var prev = { px: VM.sourceBitmap, w: VM.sourceW, h: VM.sourceH };
+
+    var sub = document.createElement('div');
+    sub.className = 'pcp-subpage';
+    sub.id = 'subCrop';
+    sub.innerHTML =
+      '<div class="pcp-editor-head">' +
+      '<button class="pcp-back-btn" id="cropCancel">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>' +
+      '</button>' +
+      '<h2 class="pcp-editor-title">' + S('crop_title') + '</h2>' +
+      '<span class="pcp-editor-meta">' + VM.canvasWidth + '×' + VM.canvasHeight + '</span>' +
+      '</div>' +
+      '<div class="pcp-crop-area" id="cropArea"><canvas id="cropCanvas"></canvas></div>' +
+      '<p class="pcp-crop-hint">' + S('crop_hint') + '</p>' +
+      '<div class="pcp-crop-bar">' +
+      '<button class="pcp-crop-btn" id="cropReset">' + S('reset') + '</button>' +
+      '<button class="pcp-crop-btn" id="cropZoomOut">−</button>' +
+      '<button class="pcp-crop-btn" id="cropZoomIn">+</button>' +
+      '<button class="pcp-crop-btn primary" id="cropOk">' + S('crop_confirm') + '</button>' +
+      '</div>';
+    $('app').appendChild(sub);
+
+    var area = $('cropArea');
+    var cv = $('cropCanvas');
+    var ctx = cv.getContext('2d');
+    var srcCanvas = toCanvas(VM.originalBitmap, VM.originalW, VM.originalH);
+
+    var k = 1, panX = 0, panY = 0;
+    var areaW = 0, areaH = 0, baseScale = 1, cropW = 0, cropH = 0;
+
+    function layout() {
+      areaW = area.clientWidth || window.innerWidth;
+      areaH = area.clientHeight || 300;
+      cv.width = Math.round(areaW);
+      cv.height = Math.round(areaH);
+      var aspect = VM.canvasWidth / VM.canvasHeight;
+      var maxW = areaW * 0.88, maxH = areaH * 0.88;
+      if (maxW / maxH > aspect) { cropH = maxH; cropW = maxH * aspect; }
+      else { cropW = maxW; cropH = maxW / aspect; }
+      baseScale = Math.max(cropW / VM.originalW, cropH / VM.originalH);
+      clampPan();
+      draw();
+    }
+
+    function clampPan() {
+      var s = baseScale * k;
+      var maxX = Math.max(0, (VM.originalW * s - cropW) / 2);
+      var maxY = Math.max(0, (VM.originalH * s - cropH) / 2);
+      panX = clamp(panX, -maxX, maxX);
+      panY = clamp(panY, -maxY, maxY);
+    }
+
+    function draw() {
+      var s = baseScale * k;
+      var w = VM.originalW * s, h = VM.originalH * s;
+      var left = areaW / 2 + panX - w / 2;
+      var top = areaH / 2 + panY - h / 2;
+
+      ctx.clearRect(0, 0, areaW, areaH);
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(srcCanvas, left, top, w, h);
+
+      var cl = (areaW - cropW) / 2, ct = (areaH - cropH) / 2;
+      ctx.fillStyle = 'rgba(0,0,0,0.62)';
+      ctx.fillRect(0, 0, areaW, ct);
+      ctx.fillRect(0, ct + cropH, areaW, areaH - ct - cropH);
+      ctx.fillRect(0, ct, cl, cropH);
+      ctx.fillRect(cl + cropW, ct, areaW - cl - cropW, cropH);
+
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(cl + 1, ct + 1, cropW - 2, cropH - 2);
+      ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+      ctx.lineWidth = 1;
+      for (var i = 1; i < 3; i++) {
+        var gx = cl + cropW * i / 3, gy = ct + cropH * i / 3;
+        ctx.beginPath(); ctx.moveTo(gx, ct); ctx.lineTo(gx, ct + cropH); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cl, gy); ctx.lineTo(cl + cropW, gy); ctx.stroke();
+      }
+    }
+
+    var dragging = false, sx = 0, sy = 0, spx = 0, spy = 0;
+    cv.addEventListener('pointerdown', function (e) {
+      dragging = true;
+      sx = e.clientX; sy = e.clientY; spx = panX; spy = panY;
+      try { cv.setPointerCapture(e.pointerId); } catch (x) {}
+    });
+    cv.addEventListener('pointermove', function (e) {
+      if (!dragging) return;
+      e.preventDefault();
+      panX = spx + (e.clientX - sx);
+      panY = spy + (e.clientY - sy);
+      clampPan();
+      draw();
+    });
+    function stopDrag(e) {
+      dragging = false;
+      try { cv.releasePointerCapture(e.pointerId); } catch (x) {}
+    }
+    cv.addEventListener('pointerup', stopDrag);
+    cv.addEventListener('pointercancel', stopDrag);
+    cv.addEventListener('wheel', function (e) {
+      e.preventDefault();
+      k = clamp(k * (e.deltaY > 0 ? 0.92 : 1.08), 1, 8);
+      clampPan(); draw();
+    }, { passive: false });
+
+    var pinchDist = 0, pinchK = 1;
+    cv.addEventListener('touchstart', function (e) {
+      if (e.touches.length === 2) {
+        var dx = e.touches[0].clientX - e.touches[1].clientX;
+        var dy = e.touches[0].clientY - e.touches[1].clientY;
+        pinchDist = Math.sqrt(dx * dx + dy * dy);
+        pinchK = k; dragging = false;
+      }
+    }, { passive: true });
+    cv.addEventListener('touchmove', function (e) {
+      if (e.touches.length !== 2 || !pinchDist) return;
+      e.preventDefault();
+      var dx = e.touches[0].clientX - e.touches[1].clientX;
+      var dy = e.touches[0].clientY - e.touches[1].clientY;
+      var d = Math.sqrt(dx * dx + dy * dy);
+      k = clamp(pinchK * (d / pinchDist), 1, 8);
+      clampPan(); draw();
+    }, { passive: false });
+    cv.addEventListener('touchend', function () { pinchDist = 0; });
+
+    $('cropReset').onclick = function () { k = 1; panX = 0; panY = 0; clampPan(); draw(); };
+    $('cropZoomIn').onclick = function () { k = clamp(k * 1.25, 1, 8); clampPan(); draw(); };
+    $('cropZoomOut').onclick = function () { k = clamp(k / 1.25, 1, 8); clampPan(); draw(); };
+    $('cropCancel').onclick = function () {
+      VM.sourceBitmap = prev.px;
+      VM.sourceW = prev.w;
+      VM.sourceH = prev.h;
+      sub.remove();
+      drawPreview();
+    };
+
+    $('cropOk').onclick = function () {
+      var s = baseScale * k;
+      var w = VM.originalW * s, h = VM.originalH * s;
+      var left = areaW / 2 + panX - w / 2;
+      var top = areaH / 2 + panY - h / 2;
+      var cl = (areaW - cropW) / 2, ct = (areaH - cropH) / 2;
+
+      var srcX = Math.round((cl - left) / s);
+      var srcY = Math.round((ct - top) / s);
+      var srcCw = Math.round(cropW / s);
+      var srcCh = Math.round(cropH / s);
+      srcX = clamp(srcX, 0, Math.max(0, VM.originalW - 1));
+      srcY = clamp(srcY, 0, Math.max(0, VM.originalH - 1));
+      srcCw = clamp(srcCw, 1, VM.originalW - srcX);
+      srcCh = clamp(srcCh, 1, VM.originalH - srcY);
+
+      var out = new Int32Array(srcCw * srcCh);
+      for (var y = 0; y < srcCh; y++) {
+        for (var x = 0; x < srcCw; x++) {
+          out[y * srcCw + x] = VM.originalBitmap[(srcY + y) * VM.originalW + (srcX + x)];
+        }
+      }
+      VM.sourceBitmap = out;
+      VM.sourceW = srcCw;
+      VM.sourceH = srcCh;
+      VM.scale = 1; VM.offsetX = 0; VM.offsetY = 0; VM.rotation = 0;
+
+      sub.remove();
+      drawPreview();
+      if (VM.autoGenerate) generate();
+    };
+
+    // 等布局完成后再算尺寸
+    requestAnimationFrame(layout);
+  }
+
   // ==================== 标签切换 ====================
   function switchTab(name) {
     VM.tab = name;
@@ -1513,7 +1707,11 @@
     };
 
     // 裁剪 = 重新选图（网页端简化）
-    $('recropBtn').onclick = function () { $('fileInput').click(); };
+    // [对齐 App] 「重新裁剪」回到裁剪页（不是重新选图）
+    $('recropBtn').onclick = function () {
+      if (VM.originalBitmap) openCrop();
+      else $('fileInput').click();
+    };
 
     // 网格
     $('gridBtn').onclick = function () {
