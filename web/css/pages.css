@@ -1021,6 +1021,77 @@
   display: flex;
   flex-direction: column;
 }
+
+/* ===== 色板：双 QuickBar + 标尺 + 虚拟化视口（同 PaletteGrid） ===== */
+.pcp-pal-hbar {
+  height: 18px;
+  margin: 0 28px;
+  position: relative;
+  touch-action: none;
+  flex: 0 0 auto;
+}
+.pcp-pal-rx-row {
+  display: flex;
+  height: 22px;
+  flex: 0 0 auto;
+}
+.pcp-pal-rx-pad { width: 28px; flex: 0 0 28px; }
+.pcp-pal-rx {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+.pcp-pal-rx span {
+  position: absolute;
+  top: 3px;
+  font-size: 9px;
+  color: var(--pcp-TextSecondary);
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+.pcp-pal-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+.pcp-pal-ry {
+  width: 28px;
+  flex: 0 0 28px;
+  position: relative;
+  overflow: hidden;
+}
+.pcp-pal-ry span {
+  position: absolute;
+  right: 4px;
+  font-size: 9px;
+  color: var(--pcp-TextSecondary);
+  transform: translateY(-50%);
+  white-space: nowrap;
+}
+.pcp-pal-view {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.pcp-pal-view::-webkit-scrollbar { width: 0; height: 0; }
+#paletteCanvas {
+  position: sticky;
+  top: 0;
+  left: 0;
+  display: block;
+  pointer-events: none;
+  z-index: 2;
+}
+.pcp-pal-spacer { width: 1px; height: 1px; }
+.pcp-pal-vbar {
+  width: 20px;
+  flex: 0 0 20px;
+  position: relative;
+  touch-action: none;
+}
+
 #paletteBody[hidden] { display: none; }
 #page-palette .pcp-palette-main {
   flex: 1;
