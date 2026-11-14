@@ -51,6 +51,10 @@
     }
     // [对齐 App] SizeInput 的 label 在源码中固定为 "W"/"H"，不随语言变化，故不翻译。
 
+    // 保存按钮带图标，需手动设文案（结构变化后 data-s 不再适用）
+    var saveLb = document.getElementById('saveAlbumLabel');
+    if (saveLb) saveLb.textContent = S('save_to_album');
+
     document.documentElement.lang = lang === 'zh' ? 'zh-CN' : lang;
   }
 
@@ -61,7 +65,7 @@
     algorithm: 'nearest',
     customKernel: 'bilinear',
     customSamples: 4,
-    gridEnabled: false,
+    gridEnabled: true, // [对齐 App] MainViewModel 默认 true
     dragAdjustEnabled: false,
     themeMode: 'system',
     autoGenerate: false,
@@ -472,13 +476,42 @@
       });
     } catch (e) { return; }
 
-    cv.width = pw; cv.height = ph;
-    cv.getContext('2d').putImageData(toImageData(out, pw, ph), 0, 0);
+    // [对齐 App] 放大后绘制，保证网格线是 1px 真实像素
+    var mult = Math.max(1, Math.min(8, Math.floor(1024 / Math.max(pw, ph))));
+    cv.width = pw * mult;
+    cv.height = ph * mult;
+    var ctx = cv.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+    var tmp = document.createElement('canvas');
+    tmp.width = pw; tmp.height = ph;
+    tmp.getContext('2d').putImageData(toImageData(out, pw, ph), 0, 0);
+    ctx.drawImage(tmp, 0, 0, cv.width, cv.height);
+
+    // [对齐 App] ImageDisplayBox 网格覆盖：画布<=160 且格子>=2.5px
+    if (VM.gridEnabled && pw <= 160 && ph <= 160) {
+      var cellW = cv.width / pw;
+      var cellH = cv.height / ph;
+      if (cellW >= 2.5 && cellH >= 2.5) {
+        ctx.strokeStyle = 'rgba(0,0,0,0.33)'; // 0x55000000
+        ctx.lineWidth = 1;
+        for (var gi = 0; gi <= pw; gi++) {
+          var gx = Math.round(gi * cellW) + 0.5;
+          ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, cv.height); ctx.stroke();
+        }
+        for (var gj = 0; gj <= ph; gj++) {
+          var gy = Math.round(gj * cellH) + 0.5;
+          ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(cv.width, gy); ctx.stroke();
+        }
+      }
+    }
     cv.style.width = '100%';
     cv.style.height = 'auto';
     cv.style.maxWidth = '100%';
     cv.style.maxHeight = '100%';
-    cv.style.aspectRatio = pw + ' / ' + ph;
+    // [对齐 App] ImageDisplayBox 用 fitRect(按图片比例 contain)：
+    // 展示框始终完整显示整张图，像素画铺满该区域（而不是按画布比例拉伸）
+    cv.style.aspectRatio = VM.sourceW + ' / ' + VM.sourceH;
+    cv.style.objectFit = 'contain';
   }
 
   // ==================== 生成 ====================
@@ -1958,7 +1991,8 @@
     // 生成 / 画布编辑
     $('generateBtn').onclick = generate;
     $('saveAlbumBtn').onclick = saveAlbum;
-    $('newCanvasBtn').onclick = function () { openEditor(true); };
+    // [对齐 App] 该卡片文案是「画布编辑」，应加载已生成的像素画（不是空白）
+    $('newCanvasBtn').onclick = function () { openEditor(false); };
 
     // 设置
     $('settingsBtn').onclick = openSettings;
