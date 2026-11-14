@@ -740,3 +740,62 @@
   color: var(--pcp-TextSecondary);
   margin: 0;
 }
+
+/* ================= 裁剪页（对应 CropScreen.kt） ================= */
+.pcp-crop-area {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 12px;
+  touch-action: none;
+  overflow: hidden;
+}
+
+.pcp-crop-area canvas {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 8px;
+  cursor: grab;
+  touch-action: none;
+}
+
+.pcp-crop-area canvas:active { cursor: grabbing; }
+
+.pcp-crop-hint {
+  margin: 0 16px 10px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--pcp-TextSecondary);
+  text-align: center;
+}
+
+.pcp-crop-bar {
+  display: flex;
+  gap: 8px;
+  padding: 0 16px 22px;
+}
+
+.pcp-crop-btn {
+  flex: 1;
+  height: 44px;
+  border-radius: 12px;
+  border: 1px solid var(--pcp-BorderInput);
+  background: var(--pcp-BgCardPrimary);
+  color: var(--pcp-TextPrimary);
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.1s, border-color 0.15s;
+}
+
+.pcp-crop-btn:active { transform: scale(0.97); }
+
+.pcp-crop-btn.primary {
+  background: var(--pcp-Primary);
+  border-color: var(--pcp-Primary);
+  color: #FFFFFF;
+}
