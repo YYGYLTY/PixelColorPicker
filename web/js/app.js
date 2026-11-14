@@ -185,18 +185,44 @@
   }
 
   // ==================== 绘制 Logo（16x16 像素方块） ====================
+  /** [对齐 App] old_ic_app_icon.xml：6 个彩色像素块 + 白色取色圆 + 深色圆 + 吸管。 */
   function drawLogo(cv, size) {
     var ctx = cv.getContext('2d');
-    var colors = ['#5EEAD4', '#38BDF8', '#818CF8', '#2A3040',
-      '#38BDF8', '#818CF8', '#2A3040', '#2A3040',
-      '#818CF8', '#2A3040', '#F472B6', '#FBBF24',
-      '#2A3040', '#2A3040', '#FBBF24', '#F472B6'];
-    var g = size / 4;
+    var s = size / 108; // 源 viewport 108×108
     ctx.clearRect(0, 0, size, size);
-    for (var i = 0; i < 16; i++) {
-      ctx.fillStyle = colors[i];
-      ctx.fillRect((i % 4) * g, Math.floor(i / 4) * g, g + 0.5, g + 0.5);
+
+    function block(x, y, c) {
+      ctx.fillStyle = c;
+      ctx.fillRect(x * s, y * s, 18 * s, 18 * s);
     }
+    block(18, 20, '#FF5C8A');
+    block(45, 15, '#FFD166');
+    block(72, 22, '#06D6A0');
+    block(15, 70, '#118AB2');
+    block(45, 78, '#8338EC');
+    block(75, 68, '#EF476F');
+
+    // 中心取色圆（白，r22）
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath();
+    ctx.arc(54 * s, 54 * s, 22 * s, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 中心像素点（深色，r12）
+    ctx.fillStyle = '#20202A';
+    ctx.beginPath();
+    ctx.arc(54 * s, 54 * s, 12 * s, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 吸管（白色斜杆）
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath();
+    ctx.moveTo(62 * s, 58 * s);
+    ctx.lineTo(83 * s, 79 * s);
+    ctx.lineTo(78 * s, 84 * s);
+    ctx.lineTo(57 * s, 63 * s);
+    ctx.closePath();
+    ctx.fill();
   }
 
   // ==================== 欢迎动画（复刻 WelcomeAnimation.kt） ====================
@@ -568,6 +594,9 @@
     }
     empty.hidden = true; body.hidden = false;
 
+    var sb = $('palSearchBtn');
+    if (sb) sb.hidden = !VM.pixelArt;
+
     var W = VM.artW, H = VM.artH;
     // [对齐 App] PaletteScreen：cellDp = (210000 / (999 * density)).coerceIn(24, 76)
     // 网页的 CSS px 已是逻辑单位，直接用 devicePixelRatio 当 density。
@@ -616,7 +645,72 @@
       }
     }
 
+    // [对齐 App] 搜索跳转后的短暂高亮（PaletteGrid 的 searchTarget）
+    if (VM.palHi && VM.palHi.x < W && VM.palHi.y < H) {
+      var lw = Math.max(2, Math.round(cs / 3));
+      ctx.strokeStyle = '#66CCFF';
+      ctx.lineWidth = lw;
+      ctx.strokeRect(
+        VM.palHi.x * cs + lw / 2,
+        VM.palHi.y * cs + lw / 2,
+        cs - lw,
+        cs - lw
+      );
+    }
     renderRulers(W, H, cell);
+  }
+
+  /** 坐标搜索对话框（同 CoordinateSearchDialog，1-based）。 */
+  function showPaletteSearch() {
+    if (!VM.pixelArt) return;
+    var W = VM.artW, H = VM.artH;
+    openDialog(
+      '<h3 class="pcp-dialog-title">' + S('palette_search_title') + '</h3>' +
+      '<p class="pcp-dialog-hint">X: 1 - ' + W + ' &nbsp; Y: 1 - ' + H + '</p>' +
+      '<div class="pcp-dialog-row">' +
+      '<input class="pcp-dialog-input" id="srX" type="number" min="1" max="' + W + '" placeholder="X">' +
+      '<input class="pcp-dialog-input" id="srY" type="number" min="1" max="' + H + '" placeholder="Y">' +
+      '</div>' +
+      '<div class="pcp-dialog-actions">' +
+      '<button class="pcp-dialog-btn" id="dlgCancel">' + S('action_cancel') + '</button>' +
+      '<button class="pcp-dialog-btn primary" id="dlgOk">' + S('action_confirm') + '</button>' +
+      '</div>'
+    );
+    $('dlgCancel').onclick = closeDialog;
+    $('dlgOk').onclick = function () {
+      var x = parseInt($('srX').value, 10);
+      var y = parseInt($('srY').value, 10);
+      if (!(x >= 1 && x <= W && y >= 1 && y <= H)) {
+        toast('1 - ' + W + ' / 1 - ' + H);
+        return;
+      }
+      closeDialog();
+      scrollPaletteTo(x - 1, y - 1);
+    };
+  }
+
+  /** 滚动到指定格子并短暂高亮。 */
+  function scrollPaletteTo(cx, cy) {
+    VM.palHi = { x: cx, y: cy };
+    renderPalette();
+    var dpr = window.devicePixelRatio || 1;
+    var cell = clamp(210000 / (999 * dpr), 24, 76);
+    var wrap = document.querySelector('#page-palette .pcp-palette-canvas-wrap');
+    if (wrap) {
+      var left = cx * cell - wrap.clientWidth / 2 + cell / 2;
+      var top = cy * cell - wrap.clientHeight / 2 + cell / 2;
+      try {
+        wrap.scrollTo({ left: Math.max(0, left), top: Math.max(0, top), behavior: 'smooth' });
+      } catch (err) {
+        wrap.scrollLeft = Math.max(0, left);
+        wrap.scrollTop = Math.max(0, top);
+      }
+    }
+    clearTimeout(VM._palHiTimer);
+    VM._palHiTimer = setTimeout(function () {
+      VM.palHi = null;
+      renderPalette();
+    }, 1800);
   }
 
   function renderRulers(W, H, cell) {
@@ -717,7 +811,9 @@
           shown = next;
         }
       }
+      if (VM._syncQuickBar) VM._syncQuickBar();
     };
+    if (VM._syncQuickBar) VM._syncQuickBar();
   }
 
   function buildCodeItem(col, colors) {
@@ -906,19 +1002,49 @@
 
     // 拖拽调整
     var box = $('displayBox');
-    var dragging = false, sx = 0, sy = 0, sox = 0, soy = 0;
+    var dragging = false, sx = 0, sy = 0;
+    var ptrs = {};          // pointerId -> {x, y}：支持双指 pinch（同 detectTransformGestures）
+    var pinchPrev = 0;
+    function ptrList() {
+      return Object.keys(ptrs).map(function (k) { return ptrs[k]; });
+    }
+    function ptrDist() {
+      var l = ptrList();
+      if (l.length < 2) return 0;
+      var dx = l[0].x - l[1].x, dy = l[0].y - l[1].y;
+      return Math.sqrt(dx * dx + dy * dy);
+    }
     box.addEventListener('pointerdown', function (e) {
       if (!VM.dragAdjustEnabled || !VM.sourceBitmap) return;
-      dragging = true;
-      sx = e.clientX; sy = e.clientY;
-      sox = VM.offsetX; soy = VM.offsetY;
+      ptrs[e.pointerId] = { x: e.clientX, y: e.clientY };
+      var n = ptrList().length;
+      if (n === 1) {
+        dragging = true;
+        sx = e.clientX; sy = e.clientY;
+      } else if (n === 2) {
+        pinchPrev = ptrDist();
+        dragging = false;
+      }
       // 原图态下拖动无意义（参数只影响像素化结果），自动切到像素化预览
       if (!VM.isPixelated) { VM.isPixelated = true; drawPreview(true); }
       try { box.setPointerCapture(e.pointerId); } catch (err) {}
     });
     box.addEventListener('pointermove', function (e) {
-      if (!dragging) return;
+      if (!(e.pointerId in ptrs)) return;
       e.preventDefault();
+      ptrs[e.pointerId] = { x: e.clientX, y: e.clientY };
+      var n = ptrList().length;
+      // 双指：缩放采样区域（同 detectTransformGestures 的 zoom）
+      if (n >= 2) {
+        var d = ptrDist();
+        if (pinchPrev > 0 && d > 0) {
+          dragAdjustZoom(d / pinchPrev);
+          drawPreview(true);
+        }
+        pinchPrev = d;
+        return;
+      }
+      if (!dragging) return;
       var rect = box.getBoundingClientRect();
       // [对齐 App] dragAdjustBy：增量式像素位移，边界动态计算
       dragAdjustBy(e.clientX - sx, e.clientY - sy, rect.width, rect.height);
@@ -926,8 +1052,19 @@
       drawPreview(true);
     });
     function endDrag(e) {
-      if (!dragging) return;
+      if (e.pointerId in ptrs) delete ptrs[e.pointerId];
+      var n = ptrList().length;
+      if (n === 1) {
+        // 从双指变单指：重新以剩下那根手指为起点，避免跳变
+        var l = ptrList();
+        sx = l[0].x; sy = l[0].y;
+        dragging = true;
+        pinchPrev = 0;
+        return;
+      }
+      if (n > 1) return;
       dragging = false;
+      pinchPrev = 0;
       try { box.releasePointerCapture(e.pointerId); } catch (err) {}
       // 松手后用全分辨率重算
       drawPreview();
@@ -1281,8 +1418,10 @@
       '<span class="pcp-editor-meta" id="edMeta"></span>' +
       '</div>' +
       '<div class="pcp-editor-wrap"><canvas id="editorCanvas"></canvas></div>' +
+      '<div class="pcp-ed-tools" id="edTools"></div>' +
       '<div class="pcp-ed-palette" id="edPalette"></div>' +
-      '<div class="pcp-editor-bar" id="edBar"></div>';
+      '<div class="pcp-ed-info" id="edInfo"></div>' +
+      '<div class="pcp-ed-bottom" id="edBottom"></div>';
     $('app').appendChild(sub);
 
     $('edBack').onclick = function () {
@@ -1290,43 +1429,66 @@
       VM.subScreen = null;
     };
 
-    var bar = $('edBar');
+    // ---------- 工具栏（图标 + 文字，同 ToolBar） ----------
     var tools = [
-      { id: 'brush', icon: '<path d="M12 20h9M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4z"/>' },
-      { id: 'eraser', icon: '<path d="M20 20H8l-6-6a2 2 0 010-3l8-8a2 2 0 013 0l5 5a2 2 0 010 3l-8 8"/>' },
-      { id: 'eyedropper', icon: '<path d="M2 22l1-1 4-4M17 3a2.8 2.8 0 114 4L7 21l-4 1 1-4L17 3z"/>' },
-      { id: 'fill', icon: '<path d="M19 11l-8-8-8.5 8.5a2 2 0 000 3L9 21a2 2 0 003 0z"/><path d="M5 2l5 5"/>' }
+      { id: 'brush', key: 'editor_tool_pencil', icon: '<path d="M14.5,5.5l4,4M4,20l1,-4.5L15.5,5a2.12,2.12 0 0 1 3,3L8,18.5 4,20z"/>' },
+      { id: 'eraser', key: 'editor_tool_eraser', icon: '<path d="M20,20H8l-6,-6a2,2 0 0 1 0,-3l8,-8a2,2 0 0 1 3,0l5,5a2,2 0 0 1 0,3l-8,8"/>' },
+      { id: 'eyedropper', key: 'editor_tool_eyedropper', icon: '<path d="M17.66,5.41l0.92,0.92M17.67,3a2.4,2.4 0 1 1 3.4,3.4l-3.12,3.12M6.92,19L5,17.08l8.06,-8.06 1.92,1.92z"/>' },
+      { id: 'fill', key: 'editor_tool_fill', icon: '<path d="M19,11l-8,-8 -8.5,8.5a2,2 0 0 0 0,3L9,21a2,2 0 0 0 3,0z"/><path d="M5,2l5,5"/>' }
     ];
+    var edTools = $('edTools');
     tools.forEach(function (t) {
       var b = document.createElement('button');
-      b.className = 'pcp-tool-btn' + (VM.editTool === t.id ? ' is-active' : '');
-      b.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">' + t.icon + '</svg>';
+      b.className = 'pcp-ed-tool' + (VM.editTool === t.id ? ' is-active' : '');
+      b.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">' + t.icon + '</svg>' +
+        '<span>' + S(t.key) + '</span>';
       b.onclick = function () {
         VM.editTool = t.id;
-        bar.querySelectorAll('.pcp-tool-btn').forEach(function (x) { x.classList.remove('is-active'); });
+        edTools.querySelectorAll('.pcp-ed-tool').forEach(function (x) { x.classList.remove('is-active'); });
         b.classList.add('is-active');
       };
-      bar.appendChild(b);
+      edTools.appendChild(b);
     });
 
-    // [对齐 App] 颜色改用调色板（PaletteRow），不再用系统取色器
+    // ---------- 颜色信息卡片（同 ColorInfoCard） ----------
+    var edInfo = $('edInfo');
+    edInfo.innerHTML =
+      '<div class="pcp-ed-info-row">' +
+      '<button class="pcp-ed-swatch" id="edSwatch"></button>' +
+      '<div class="pcp-ed-info-txt">' +
+      '<div class="pcp-ed-lbl">' + S('editor_color') + '</div>' +
+      '<div class="pcp-ed-hex" id="edHex"></div>' +
+      '</div>' +
+      '<button class="pcp-ed-custom" id="edCustom">' + S('editor_custom_color') + '</button>' +
+      '</div>' +
+      '<div class="pcp-ed-coord" id="edCoord"></div>';
+    $('edSwatch').onclick = function () { pickEditorColor(); };
+    $('edCustom').onclick = function () { pickEditorColor(); };
 
-    // 撤销/重做/清空
-    var actions = [
-      { icon: '<path d="M3 7v6h6"/><path d="M21 17a9 9 0 00-9-9 9 9 0 00-6 2.3L3 13"/>', fn: doUndo },
-      { icon: '<path d="M21 7v6h-6"/><path d="M3 17a9 9 0 019-9 9 9 0 016 2.3L21 13"/>', fn: doRedo },
-      { icon: '<path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/>', fn: doClear }
-    ];
-    actions.forEach(function (a) {
-      var b = document.createElement('button');
-      b.className = 'pcp-tool-btn';
-      b.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">' + a.icon + '</svg>';
-      b.onclick = a.fn;
-      bar.appendChild(b);
-    });
+    // ---------- 底部按钮（同 EditorScreen 底部） ----------
+    var edBottom = $('edBottom');
+    edBottom.innerHTML =
+      '<button class="pcp-ed-primary" id="edAddHome">' +
+      '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="none"><path fill="currentColor" d="M21,5h-3V2h-2v3H13v2h3v3h2V7h3zM4,5h7v2H4v12h12v-7h2v7a2,2 0 0 1 -2,2H4a2,2 0 0 1 -2,-2V7a2,2 0 0 1 2,-2z"/></svg>' +
+      '<span>' + S('editor_add_to_home') + '</span></button>' +
+      '<button class="pcp-ed-primary" id="edSave">' +
+      '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="none"><path fill="currentColor" d="M17,3H5a2,2 0 0 0 -2,2v14a2,2 0 0 0 2,2h14a2,2 0 0 0 2,-2V7l-4,-4zM12,19a3,3 0 1 1 0,-6 3,3 0 0 1 0,6zM15,9H5V5h10z"/></svg>' +
+      '<span>' + S('editor_save') + '</span></button>' +
+      '<div class="pcp-ed-row">' +
+      '<button class="pcp-ed-outline" id="edExport">' + S('editor_export_png') + '</button>' +
+      '<button class="pcp-ed-outline" id="edFillAll">' + S('editor_fill_all') + '</button>' +
+      '<button class="pcp-ed-outline is-danger" id="edClear">' + S('editor_clear') + '</button>' +
+      '</div>';
+    $('edAddHome').onclick = function () { editorToHome(false); };
+    $('edSave').onclick = function () { editorToHome(true); };
+    $('edExport').onclick = function () { exportEditorPng(); };
+    $('edFillAll').onclick = function () { fillEditorAll(); };
+    $('edClear').onclick = function () { doClear(); };
 
     initEditorCanvas();
     renderEditor();
+    renderEditorPalette();
+    renderEdInfo();
   }
 
   /** [对齐 App] EditorScreen 的调色板：从当前作品提取颜色 + 「+」添加。 */
@@ -1376,7 +1538,151 @@
     });
   }
 
+  /** 选颜色（自定义）：App 是 ColorSheet，网页用原生取色器。 */
+  function pickEditorColor() {
+    var inp = document.createElement('input');
+    inp.type = 'color';
+    inp.value = '#' + ((VM.editColor >>> 0) & 0xFFFFFF).toString(16).padStart(6, '0');
+    inp.style.cssText = 'position:fixed;left:-9999px';
+    document.body.appendChild(inp);
+    inp.onchange = function () {
+      VM.editColor = Codec.parseHex(inp.value);
+      document.body.removeChild(inp);
+      renderEditorPalette();
+      renderEdInfo();
+    };
+    inp.click();
+  }
+
+  /** 颜色信息卡片（同 ColorInfoCard）：当前色块 + hex + 选中坐标。 */
+  function renderEdInfo() {
+    var sw = $('edSwatch'), hx = $('edHex'), co = $('edCoord');
+    if (!sw) return;
+    var cur = VM.editColor;
+    var hex = '#' + ((cur >>> 0) & 0xFFFFFF).toString(16).padStart(6, '0').toUpperCase();
+    sw.style.background = hex;
+    hx.textContent = hex;
+    var idx = VM.edSel;
+    if (idx != null && idx >= 0 && idx < VM.editPixels.length) {
+      var x = idx % VM.editW;
+      var y = (idx / VM.editW) | 0;
+      var c = VM.editPixels[idx];
+      var ch = '#' + ((c >>> 0) & 0xFFFFFF).toString(16).padStart(6, '0').toUpperCase();
+      var a = (c >>> 24) & 0xFF;
+      co.innerHTML =
+        '<span class="pcp-ed-coord-dot" style="background:' + ch + '"></span>' +
+        '<span class="pcp-ed-coord-txt">' + S('editor_coord') + ': (' + x + ', ' + y + ')<br>' +
+        ch + '  A=' + a + '</span>';
+      co.classList.add('is-on');
+    } else {
+      co.innerHTML = '';
+      co.classList.remove('is-on');
+    }
+  }
+
+  /** 添加图片到首页 / 保存图片（同 addEditorArtToHome / saveEditorArt）。 */
+  function editorToHome(withToast) {
+    if (!VM.editPixels) return;
+    VM.pixelArt = new Int32Array(VM.editPixels);
+    VM.artW = VM.editW;
+    VM.artH = VM.editH;
+    VM.isPixelated = true;
+    var sb = $('saveAlbumBtn');
+    if (sb) sb.disabled = false;
+    drawPreview();
+    renderPalette();
+    renderCodes();
+    toast(S(withToast ? 'editor_saved' : 'editor_added_to_home'));
+    if (!withToast) {
+      var sub = $('subEditor');
+      if (sub) sub.remove();
+      VM.subScreen = null;
+    }
+  }
+
+  /** 导出 PNG（App 用 PngExporter 写相册，网页用下载）。 */
+  function exportEditorPng() {
+    if (!VM.editPixels) return;
+    var W = VM.editW, H = VM.editH;
+    var c = document.createElement('canvas');
+    c.width = W; c.height = H;
+    var cx = c.getContext('2d');
+    var img = cx.createImageData(W, H);
+    for (var i = 0; i < W * H; i++) {
+      var p = VM.editPixels[i];
+      img.data[i * 4] = (p >>> 16) & 0xFF;
+      img.data[i * 4 + 1] = (p >>> 8) & 0xFF;
+      img.data[i * 4 + 2] = p & 0xFF;
+      img.data[i * 4 + 3] = (p >>> 24) & 0xFF;
+    }
+    cx.putImageData(img, 0, 0);
+    c.toBlob(function (blob) {
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'pixel_art_' + Date.now() + '.png';
+      a.click();
+      setTimeout(function () { URL.revokeObjectURL(a.href); }, 3000);
+      toast(S('editor_saved'));
+    }, 'image/png');
+  }
+
+  /** 全部填充为当前颜色（同 editorFillAll）。 */
+  function fillEditorAll() {
+    if (!VM.editPixels) return;
+    pushUndo();
+    VM.editPixels.fill(VM.editColor);
+    renderEditor();
+    renderEditorPalette();
+    renderEdInfo();
+  }
+
   var edCtx = null, edPainting = false, edLastX = -1, edLastY = -1;
+
+  /** 编码页右侧快速定位滑块（同 QuickBar）。 */
+  function initQuickBar() {
+    var sc = $('codeScroll'), qb = $('codeQb'), th = $('codeQbThumb');
+    if (!sc || !qb || !th) return;
+
+    function sync() {
+      if (!VM.pixelArt) { qb.hidden = true; return; }
+      var total = sc.scrollHeight - sc.clientHeight;
+      if (total <= 4) { qb.hidden = true; return; }
+      qb.hidden = false;
+      var trackH = qb.clientHeight;
+      var visRatio = Math.min(1, Math.max(0.05, sc.clientHeight / Math.max(1, sc.scrollHeight)));
+      var thH = Math.max(28, Math.round(trackH * visRatio));
+      th.style.height = thH + 'px';
+      var f = total > 0 ? sc.scrollTop / total : 0;
+      th.style.top = Math.round(f * (trackH - thH)) + 'px';
+    }
+    VM._syncQuickBar = sync;
+
+    var dragging = false;
+    function seek(e) {
+      var r = qb.getBoundingClientRect();
+      var f = clamp((e.clientY - r.top) / r.height, 0, 1);
+      sc.scrollTop = f * (sc.scrollHeight - sc.clientHeight);
+      sync();
+    }
+    qb.addEventListener('pointerdown', function (e) {
+      dragging = true;
+      qb.classList.add('is-pressed');
+      try { qb.setPointerCapture(e.pointerId); } catch (err) {}
+      seek(e);
+      e.preventDefault();
+    });
+    qb.addEventListener('pointermove', function (e) {
+      if (!dragging) return;
+      e.preventDefault();
+      seek(e);
+    });
+    function up() { dragging = false; qb.classList.remove('is-pressed'); }
+    qb.addEventListener('pointerup', up);
+    qb.addEventListener('pointercancel', up);
+    sc.addEventListener('scroll', sync, { passive: true });
+    window.addEventListener('resize', sync);
+    sync();
+  }
 
   function initEditorCanvas() {
     var cv = $('editorCanvas');
@@ -1394,14 +1700,17 @@
       var c = cellFrom(e);
       if (c.x === edLastX && c.y === edLastY) return;
       edLastX = c.x; edLastY = c.y;
+      VM.edSel = c.y * VM.editW + c.x;
       if (VM.editTool === 'brush') VM.editPixels[c.y * VM.editW + c.x] = VM.editColor;
       else if (VM.editTool === 'eraser') VM.editPixels[c.y * VM.editW + c.x] = 0;
       renderEditor();
+      renderEdInfo();
     }
 
     cv.addEventListener('pointerdown', function (e) {
       e.preventDefault();
       var c = cellFrom(e);
+      VM.edSel = c.y * VM.editW + c.x;
 
       if (VM.editTool === 'eyedropper') {
         var col = VM.editPixels[c.y * VM.editW + c.x];
@@ -1411,6 +1720,7 @@
           if (ci) ci.value = Codec.hexOf(col);
           toast(Codec.hexOf(col));
         }
+        renderEdInfo();
         return;
       }
 
@@ -1419,6 +1729,7 @@
       if (VM.editTool === 'fill') {
         doFill(c.x, c.y, VM.editColor);
         renderEditor();
+        renderEdInfo();
         return;
       }
 
@@ -1863,6 +2174,7 @@
 
   // ==================== 初始化 ====================
   function boot() {
+    initQuickBar();
     // 语言
     try {
       var l = localStorage.getItem('pcp.lang');
@@ -1993,6 +2305,8 @@
     $('saveAlbumBtn').onclick = saveAlbum;
     // [对齐 App] 该卡片文案是「画布编辑」，应加载已生成的像素画（不是空白）
     $('newCanvasBtn').onclick = function () { openEditor(false); };
+    var palSb = $('palSearchBtn');
+    if (palSb) palSb.onclick = function () { showPaletteSearch(); };
 
     // 设置
     $('settingsBtn').onclick = openSettings;
