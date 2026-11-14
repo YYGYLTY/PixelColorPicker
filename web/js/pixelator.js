@@ -8,10 +8,9 @@
  *  - 在 coverage 内取 N×N 个采样点，每个点用核函数取值；
  *  - 对采样结果求平均。
  *
- * 与 App 的唯一语义差异（有意改进）：
- *  App 的 scale=1 表示「整张源图铺满展示框」，源图与画布比例不同时会被拉伸；
- *  网页版 scale=1 采用 cover 语义（等比铺满、不拉伸），再在此基础上缩放/平移/旋转。
- *  18 色板码协议与 App 完全一致，不受影响。
+ * 坐标映射与 Pixelator.kt 完全一致（拉伸语义，不做 cover 裁剪）：
+ *  scale=1 时整张源图铺满输出框，源图与画布比例不同会被拉伸——与 App 行为相同。
+ *  18 色板码协议与 App 完全一致。
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
@@ -218,11 +217,10 @@
       gridN = GRID_N[algorithm] || 1;
     }
 
-    var vp = computeViewport(srcW, srcH, outW, outH, scale, offsetX, offsetY);
-
-    // 每个输出格在源图上的覆盖范围（像素单位）
-    var fw = vp.visibleW / outW;
-    var fh = vp.visibleH / outH;
+    // [对齐 App] 与 Pixelator.kt 一致：整张源图铺满输出框（拉伸），不做 cover 裁剪
+    var safeScale = Math.max(0.01, scale);
+    var fw = srcW / (safeScale * outW);
+    var fh = srcH / (safeScale * outH);
 
     // 采样网格数：内置算法按覆盖自适应，自定义严格按用户密度
     var nx, ny;
@@ -236,23 +234,26 @@
 
     var rad = -rotationDeg * Math.PI / 180;
     var cosT = Math.cos(rad), sinT = Math.sin(rad);
+    var srcCenterX = srcW / 2 + offsetX * srcW;
+    var srcCenterY = srcH / 2 + offsetY * srcH;
 
     for (var j = 0; j < outH; j++) {
-      var v = (j + 0.5) / outH - 0.5;
+      var v = (j + 0.5) / outH;
       for (var i = 0; i < outW; i++) {
-        var u = (i + 0.5) / outW - 0.5;
+        var u = (i + 0.5) / outW;
 
-        var lx = u * vp.visibleW;
-        var ly = v * vp.visibleH;
+        var lx = (u - 0.5) * srcW;
+        var ly = (v - 0.5) * srcH;
 
         // 逆旋转
         var rx = lx * cosT - ly * sinT;
         var ry = lx * sinT + ly * cosT;
 
-        var cx = vp.centerX + rx;
-        var cy = vp.centerY + ry;
+        // 逆缩放 + 中心/平移
+        var cx = srcCenterX + rx / safeScale;
+        var cy = srcCenterY + ry / safeScale;
 
-        if (kernel === ALGO.NEAREST && algorithm !== ALGO.AVERAGE) {
+        if (kernel === ALGO.NEAREST) {
           out[j * outW + i] = sampleNearest(src, srcW, srcH, cx, cy);
           continue;
         }
