@@ -494,12 +494,13 @@
     }
 
     var out;
+    var ES = effectiveSource();
     try {
-      out = Pix.pixelate(VM.sourceBitmap, VM.sourceW, VM.sourceH, pw, ph, {
+      out = Pix.pixelate(ES.px, ES.w, ES.h, pw, ph, {
         algorithm: VM.algorithm,
         customKernel: VM.customKernel,
         customSamples: VM.customSamples,
-        scale: VM.scale, offsetX: VM.offsetX, offsetY: VM.offsetY,
+        scale: ES.scale, offsetX: ES.ox, offsetY: ES.oy,
         rotationDeg: VM.rotation
       });
     } catch (e) { return; }
@@ -551,13 +552,14 @@
     }
     var t0 = performance.now();
     var out;
+    var ES = effectiveSource();
     try {
-      out = Pix.pixelate(VM.sourceBitmap, VM.sourceW, VM.sourceH,
+      out = Pix.pixelate(ES.px, ES.w, ES.h,
         VM.canvasWidth, VM.canvasHeight, {
         algorithm: VM.algorithm,
         customKernel: VM.customKernel,
         customSamples: VM.customSamples,
-        scale: VM.scale, offsetX: VM.offsetX, offsetY: VM.offsetY,
+        scale: ES.scale, offsetX: ES.ox, offsetY: ES.oy,
         rotationDeg: VM.rotation
       });
     } catch (e) { toast('生成失败：' + e.message); return; }
@@ -580,88 +582,279 @@
   }
 
   // ==================== 色板 ====================
+  // ============ 色板（照抄 PaletteGrid：虚拟化 + 圆角格子 + 三行文字 + 双滑块） ============
+  function palCellSize() {
+    var dpr = window.devicePixelRatio || 1;
+    return clamp(210000 / (999 * dpr), 24, 76);
+  }
+
+  function roundRectPath(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  /** 同 ColorUtils.contrastingText。 */
+  function contrastingText(c) {
+    var r = (c >>> 16) & 0xFF, g = (c >>> 8) & 0xFF, b = c & 0xFF;
+    var lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return lum > 0.6 ? '#101018' : '#FFFFFF';
+  }
+
   function renderPalette() {
     var empty = $('paletteEmpty');
     var body = $('paletteBody');
-    // [修复] palette_title 含 {p1} 占位符，必须传参，否则标题会显示“当前 {p1} 色板”
-    var titleEl = $('paletteTitle');
-    if (titleEl) {
-      titleEl.textContent = VM.pixelArt
-        ? S('palette_title', { p1: VM.artW + '×' + VM.artH })
-        : S('palette_title', { p1: '—' });
-    }
+    var sb = $('palSearchBtn'); if (sb) sb.hidden = !VM.pixelArt;
+    var rf = $('palRefreshBtn'); if (rf) rf.hidden = !VM.pixelArt;
     if (!VM.pixelArt) {
-      empty.hidden = false; body.hidden = true;
+      if (empty) empty.hidden = false;
+      if (body) body.hidden = true;
       return;
     }
-    empty.hidden = true; body.hidden = false;
-
-    var sb = $('palSearchBtn');
-    if (sb) sb.hidden = !VM.pixelArt;
-    var rf = $('palRefreshBtn');
-    if (rf) rf.hidden = !VM.pixelArt;
+    if (empty) empty.hidden = true;
+    if (body) body.hidden = false;
 
     var W = VM.artW, H = VM.artH;
-    // [对齐 App] PaletteScreen：cellDp = (210000 / (999 * density)).coerceIn(24, 76)
-    // 网页的 CSS px 已是逻辑单位，直接用 devicePixelRatio 当 density。
-    // 原先写成 maxEdgePx/999 得到 2px，导致色板只有指甲盖大小。
-    var dpr = window.devicePixelRatio || 1;
-    var cell = clamp(210000 / (999 * dpr), 24, 76);
-    var dpr = Math.min(window.devicePixelRatio || 1, 2);
-    var cs = Math.max(1, Math.round(cell * dpr));
+    var titleEl = $('paletteTitle');
+    if (titleEl) titleEl.textContent = S('palette_title', { p1: W + '×' + H });
 
-    var cv = $('paletteCanvas');
-    cv.width = W * cs;
-    cv.height = H * cs;
-    // 实际显示尺寸（CSS 像素）
-    var dispW = W * cell;
-    var dispH = H * cell;
-    cv.style.width = dispW + 'px';
-    cv.style.height = dispH + 'px';
+    // 同色计数（同 PixelGrid.countOf）
+    var counts = {};
+    for (var i = 0; i < VM.pixelArt.length; i++) {
+      var cc = VM.pixelArt[i] >>> 0;
+      counts[cc] = (counts[cc] || 0) + 1;
+    }
+    VM.palCounts = counts;
+    VM.palCell = palCellSize();
+
+    var sp = $('palSpacer');
+    if (sp) {
+      sp.style.width = (W * VM.palCell) + 'px';
+      sp.style.height = (H * VM.palCell + 110) + 'px';
+    }
+    var view = $('palView');
+    if (view) { view.scrollTop = 0; view.scrollLeft = 0; }
+    requestAnimationFrame(function () {
+      drawPaletteView();
+      renderPalRulers();
+      syncPalBars();
+    });
+  }
+
+  function drawPaletteView() {
+    var view = $('palView'), cv = $('paletteCanvas');
+    if (!view || !cv || !VM.pixelArt) return;
+    var cell = VM.palCell, W = VM.artW, H = VM.artH;
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var vw = view.clientWidth, vh = view.clientHeight;
+    if (vw <= 0 || vh <= 0) return;
+    if (cv.width !== Math.round(vw * dpr) || cv.height !== Math.round(vh * dpr)) {
+      cv.width = Math.round(vw * dpr);
+      cv.height = Math.round(vh * dpr);
+    }
+    cv.style.width = vw + 'px';
+    cv.style.height = vh + 'px';
 
     var ctx = cv.getContext('2d');
-    var img = ctx.createImageData(W * cs, H * cs);
-    var d = img.data;
-    for (var y = 0; y < H; y++) {
-      for (var x = 0; x < W; x++) {
-        var c = VM.pixelArt[y * W + x];
-        var r = (c >>> 16) & 0xFF, g = (c >>> 8) & 0xFF, b = c & 0xFF, a = (c >>> 24) & 0xFF;
-        for (var dy = 0; dy < cs; dy++) {
-          var base = ((y * cs + dy) * (W * cs)) * 4;
-          for (var dx = 0; dx < cs; dx++) {
-            var idx = base + (x * cs + dx) * 4;
-            d[idx] = r; d[idx + 1] = g; d[idx + 2] = b; d[idx + 3] = a;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, vw, vh);
+
+    var ox = view.scrollLeft, oy = view.scrollTop;
+    var firstX = clamp(Math.floor(ox / cell), 0, W - 1);
+    var firstY = clamp(Math.floor(oy / cell), 0, H - 1);
+    var lastX = clamp(Math.floor((ox + vw) / cell), 0, W - 1);
+    var lastY = clamp(Math.floor((oy + vh) / cell), 0, H - 1);
+
+    var pad = cell * 0.05;
+    var corner = cell * 0.16;
+    var showText = cell >= 52;
+    var hexSize = Math.max(8, Math.round(cell * 0.17));
+    var coordSize = Math.max(7, Math.round(cell * 0.15));
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    for (var y = firstY; y <= lastY; y++) {
+      for (var x = firstX; x <= lastX; x++) {
+        var c = VM.pixelArt[y * W + x] >>> 0;
+        var left = x * cell - ox;
+        var top = y * cell - oy;
+        var hex = '#' + (c & 0xFFFFFF).toString(16).padStart(6, '0').toUpperCase();
+        ctx.fillStyle = hex;
+        roundRectPath(ctx, left + pad, top + pad, cell - pad * 2, cell - pad * 2, corner);
+        ctx.fill();
+        if (showText) {
+          var tc = contrastingText(c);
+          ctx.fillStyle = tc;
+          ctx.font = hexSize + 'px ui-monospace, Menlo, Consolas, monospace';
+          ctx.fillText(hex, left + cell / 2, top + cell * 0.36);
+          ctx.font = coordSize + 'px ui-monospace, Menlo, Consolas, monospace';
+          ctx.fillText('(' + (x + 1) + ',' + (y + 1) + ')', left + cell / 2, top + cell * 0.56);
+          var cnt = VM.palCounts[c] || 0;
+          if (cnt >= 2) {
+            ctx.fillText('×' + cnt, left + cell / 2, top + cell * 0.76);
           }
         }
       }
     }
-    ctx.putImageData(img, 0, 0);
 
-    // 网格线
-    if (cell >= 5 && W <= 200 && H <= 200) {
-      ctx.strokeStyle = 'rgba(128,128,128,0.18)';
-      ctx.lineWidth = 1;
-      for (var i = 1; i < W; i++) {
-        ctx.beginPath(); ctx.moveTo(i * cs + 0.5, 0); ctx.lineTo(i * cs + 0.5, H * cs); ctx.stroke();
-      }
-      for (var j = 1; j < H; j++) {
-        ctx.beginPath(); ctx.moveTo(0, j * cs + 0.5); ctx.lineTo(W * cs, j * cs + 0.5); ctx.stroke();
+    if (VM.palHi) {
+      var hx = VM.palHi.x, hy = VM.palHi.y;
+      if (hx >= firstX && hx <= lastX && hy >= firstY && hy <= lastY) {
+        ctx.strokeStyle = '#66CCFF';
+        ctx.lineWidth = Math.max(2, cell * 0.06);
+        roundRectPath(ctx, hx * cell - ox + pad, hy * cell - oy + pad, cell - pad * 2, cell - pad * 2, corner);
+        ctx.stroke();
       }
     }
+  }
 
-    // [对齐 App] 搜索跳转后的短暂高亮（PaletteGrid 的 searchTarget）
-    if (VM.palHi && VM.palHi.x < W && VM.palHi.y < H) {
-      var lw = Math.max(2, Math.round(cs / 3));
-      ctx.strokeStyle = '#66CCFF';
-      ctx.lineWidth = lw;
-      ctx.strokeRect(
-        VM.palHi.x * cs + lw / 2,
-        VM.palHi.y * cs + lw / 2,
-        cs - lw,
-        cs - lw
-      );
+  function renderPalRulers() {
+    var view = $('palView');
+    if (!view || !VM.pixelArt) return;
+    var cell = VM.palCell, W = VM.artW, H = VM.artH;
+    var step = Math.max(1, Math.ceil(46 / cell));
+    var ox = view.scrollLeft, oy = view.scrollTop;
+
+    var rx = $('rulerX');
+    if (rx) {
+      rx.innerHTML = '';
+      var fx = Math.max(0, Math.floor(ox / cell) - 1);
+      var lx = Math.min(W - 1, Math.floor((ox + view.clientWidth) / cell) + 1);
+      for (var x = fx; x <= lx; x++) {
+        if (x % step) continue;
+        var s = document.createElement('span');
+        s.textContent = x;
+        s.style.left = (x * cell + cell / 2 - ox) + 'px';
+        rx.appendChild(s);
+      }
     }
-    renderRulers(W, H, cell);
+    var ry = $('rulerY');
+    if (ry) {
+      ry.innerHTML = '';
+      var fy = Math.max(0, Math.floor(oy / cell) - 1);
+      var ly = Math.min(H - 1, Math.floor((oy + view.clientHeight) / cell) + 1);
+      for (var y = fy; y <= ly; y++) {
+        if (y % step) continue;
+        var t = document.createElement('span');
+        t.textContent = y;
+        t.style.top = (y * cell + cell / 2 - oy) + 'px';
+        ry.appendChild(t);
+      }
+    }
+  }
+
+  /** 双 QuickBar 同步（同 PaletteGrid 的横/纵 QuickBar）。 */
+  function syncPalBars() {
+    var view = $('palView');
+    if (!view || !VM.pixelArt) return;
+    var cell = VM.palCell, W = VM.artW, H = VM.artH;
+    var contentW = W * cell, contentH = H * cell;
+
+    var hb = $('palHBar'), ht = $('palHThumb');
+    if (hb && ht) {
+      var trackW = hb.clientWidth;
+      var maxX = Math.max(0, contentW - view.clientWidth);
+      if (maxX <= 0) {
+        hb.style.visibility = 'hidden';
+      } else {
+        hb.style.visibility = 'visible';
+        var ratioW = Math.min(1, Math.max(0.05, view.clientWidth / contentW));
+        var tw = Math.max(28, Math.round(trackW * ratioW));
+        ht.style.width = tw + 'px';
+        ht.style.height = '6px';
+        ht.style.top = '6px';
+        var fx = view.scrollLeft / maxX;
+        ht.style.left = Math.round(fx * (trackW - tw)) + 'px';
+      }
+    }
+    var vb = $('palVBar'), vt = $('palVThumb');
+    if (vb && vt) {
+      var trackH = vb.clientHeight;
+      var maxY = Math.max(0, contentH - view.clientHeight);
+      if (maxY <= 0) {
+        vb.style.visibility = 'hidden';
+      } else {
+        vb.style.visibility = 'visible';
+        var ratioH = Math.min(1, Math.max(0.05, view.clientHeight / contentH));
+        var th = Math.max(28, Math.round(trackH * ratioH));
+        vt.style.height = th + 'px';
+        vt.style.width = '6px';
+        vt.style.left = '7px';
+        var fy = view.scrollTop / maxY;
+        vt.style.top = Math.round(fy * (trackH - th)) + 'px';
+      }
+    }
+  }
+
+  /** 色板交互：滚动重绘 + 点击复制 + 双滑块拖动。 */
+  function initPaletteView() {
+    var view = $('palView');
+    if (!view) return;
+    view.addEventListener('scroll', function () {
+      drawPaletteView();
+      renderPalRulers();
+      syncPalBars();
+    }, { passive: true });
+    window.addEventListener('resize', function () {
+      if (VM.pixelArt && !$('paletteBody').hidden) {
+        drawPaletteView(); renderPalRulers(); syncPalBars();
+      }
+    });
+
+    view.addEventListener('click', function (e) {
+      if (!VM.pixelArt) return;
+      var cell = VM.palCell, W = VM.artW, H = VM.artH;
+      var r = view.getBoundingClientRect();
+      var x = Math.floor((view.scrollLeft + e.clientX - r.left) / cell);
+      var y = Math.floor((view.scrollTop + e.clientY - r.top) / cell);
+      if (x < 0 || x >= W || y < 0 || y >= H) return;
+      var c = VM.pixelArt[y * W + x];
+      var hex = Codec.hexOf(c);
+      var tip = $('paletteTip');
+      if (tip) tip.textContent = '(' + x + ', ' + y + ')  ' + hex;
+      try {
+        navigator.clipboard.writeText(hex);
+        toast(S('palette_copied', { p1: hex }));
+      } catch (err) { toast(hex); }
+    });
+
+    function bindBar(bar, isH) {
+      if (!bar) return;
+      var dragging = false;
+      function seek(e) {
+        var r = bar.getBoundingClientRect();
+        var f = isH
+          ? clamp((e.clientX - r.left) / r.width, 0, 1)
+          : clamp((e.clientY - r.top) / r.height, 0, 1);
+        if (isH) {
+          var maxX = Math.max(0, VM.artW * VM.palCell - view.clientWidth);
+          view.scrollLeft = f * maxX;
+        } else {
+          var maxY = Math.max(0, VM.artH * VM.palCell - view.clientHeight);
+          view.scrollTop = f * maxY;
+        }
+        syncPalBars();
+      }
+      bar.addEventListener('pointerdown', function (e) {
+        dragging = true;
+        bar.classList.add('is-pressed');
+        try { bar.setPointerCapture(e.pointerId); } catch (err) {}
+        seek(e); e.preventDefault();
+      });
+      bar.addEventListener('pointermove', function (e) {
+        if (!dragging) return;
+        e.preventDefault(); seek(e);
+      });
+      function up() { dragging = false; bar.classList.remove('is-pressed'); }
+      bar.addEventListener('pointerup', up);
+      bar.addEventListener('pointercancel', up);
+    }
+    bindBar($('palHBar'), true);
+    bindBar($('palVBar'), false);
   }
 
   /** 坐标搜索对话框（同 CoordinateSearchDialog，1-based）。 */
@@ -696,25 +889,26 @@
   /** 滚动到指定格子并短暂高亮。 */
   function scrollPaletteTo(cx, cy) {
     VM.palHi = { x: cx, y: cy };
-    renderPalette();
-    var dpr = window.devicePixelRatio || 1;
-    var cell = clamp(210000 / (999 * dpr), 24, 76);
-    var wrap = document.querySelector('#page-palette .pcp-palette-canvas-wrap');
-    if (wrap) {
-      var left = cx * cell - wrap.clientWidth / 2 + cell / 2;
-      var top = cy * cell - wrap.clientHeight / 2 + cell / 2;
+    var view = $('palView');
+    var cell = VM.palCell || 56;
+    if (view) {
+      var left = cx * cell + cell / 2 - view.clientWidth / 2;
+      var top = cy * cell + cell / 2 - view.clientHeight / 2;
       try {
-        wrap.scrollTo({ left: Math.max(0, left), top: Math.max(0, top), behavior: 'smooth' });
+        view.scrollTo({ left: Math.max(0, left), top: Math.max(0, top), behavior: 'smooth' });
       } catch (err) {
-        wrap.scrollLeft = Math.max(0, left);
-        wrap.scrollTop = Math.max(0, top);
+        view.scrollLeft = Math.max(0, left);
+        view.scrollTop = Math.max(0, top);
       }
     }
+    drawPaletteView();
+    renderPalRulers();
+    syncPalBars();
     clearTimeout(VM._palHiTimer);
     VM._palHiTimer = setTimeout(function () {
       VM.palHi = null;
-      renderPalette();
-    }, 1800);
+      drawPaletteView();
+    }, 2600);
   }
 
   function renderRulers(W, H, cell) {
@@ -961,12 +1155,13 @@
       return;
     }
     var size = 144;
-    var out = Pix.pixelate(VM.sourceBitmap, VM.sourceW, VM.sourceH,
+    var ES = effectiveSource();
+    var out = Pix.pixelate(ES.px, ES.w, ES.h,
       size, size, {
       algorithm: 'custom',
       customKernel: VM.customKernel,
       customSamples: VM.customSamples,
-      scale: VM.scale, offsetX: VM.offsetX, offsetY: VM.offsetY,
+      scale: ES.scale, offsetX: ES.ox, offsetY: ES.oy,
       rotationDeg: VM.rotation
     });
     ctx.putImageData(toImageData(out, size, size), 0, 0);
@@ -1089,29 +1284,74 @@
     }, { passive: false });
   }
 
+  /** [C 方案] 采样源：有原图 + 裁剪矩形时用原图（可拖出裁剪范围）。 */
+  function effectiveSource() {
+    var cr = VM.cropRect;
+    if (VM.originalBitmap && cr && cr.w > 0 && cr.h > 0) {
+      var winW = cr.w / VM.scale;
+      var winH = cr.h / VM.scale;
+      var cx = cr.x + cr.w / 2 + VM.offsetX * cr.w;
+      var cy = cr.y + cr.h / 2 + VM.offsetY * cr.h;
+      var halfW = winW / 2, halfH = winH / 2;
+      cx = clamp(cx, halfW, Math.max(halfW, VM.originalW - halfW));
+      cy = clamp(cy, halfH, Math.max(halfH, VM.originalH - halfH));
+      return {
+        px: VM.originalBitmap,
+        w: VM.originalW,
+        h: VM.originalH,
+        scale: VM.originalW / winW,
+        ox: (cx - VM.originalW / 2) / VM.originalW,
+        oy: (cy - VM.originalH / 2) / VM.originalH,
+      };
+    }
+    return {
+      px: VM.sourceBitmap, w: VM.sourceW, h: VM.sourceH,
+      scale: VM.scale, ox: VM.offsetX, oy: VM.offsetY,
+    };
+  }
+
   // ==================== 拖拽调整（对应 MainViewModel.dragAdjustBy / dragAdjustZoom） ====================
   /** 计算采样窗口与可移动范围（cover 语义，与 App 完全一致）。 */
+  /** 计算采样窗口与可移动范围（C 方案：基于原图 + 裁剪矩形，非对称）。 */
   function dragLimits() {
+    var cr = VM.cropRect;
+    if (VM.originalBitmap && cr && cr.w > 0 && cr.h > 0) {
+      var winW = cr.w / VM.scale;
+      var winH = cr.h / VM.scale;
+      var cx0 = cr.x + cr.w / 2;
+      var cy0 = cr.y + cr.h / 2;
+      var minCx = Math.min(cx0, winW / 2);
+      var maxCx = Math.max(cx0, VM.originalW - winW / 2);
+      var minCy = Math.min(cy0, winH / 2);
+      var maxCy = Math.max(cy0, VM.originalH - winH / 2);
+      return {
+        winW: winW, winH: winH, baseW: cr.w, baseH: cr.h,
+        xMin: (minCx - cx0) / cr.w, xMax: (maxCx - cx0) / cr.w,
+        yMin: (minCy - cy0) / cr.h, yMax: (maxCy - cy0) / cr.h,
+      };
+    }
     var srcW = VM.sourceW, srcH = VM.sourceH;
     var targetRatio = VM.canvasWidth / VM.canvasHeight;
     var maxWinW, maxWinH;
     if (srcW / srcH > targetRatio) { maxWinH = srcH; maxWinW = srcH * targetRatio; }
     else { maxWinW = srcW; maxWinH = srcW / targetRatio; }
-    var winW = maxWinW / VM.scale;
-    var winH = maxWinH / VM.scale;
+    var winW2 = maxWinW / VM.scale;
+    var winH2 = maxWinH / VM.scale;
+    var limX = ((srcW - winW2) / 2 / srcW);
+    var limY = ((srcH - winH2) / 2 / srcH);
+    if (limX < 0) limX = 0;
+    if (limY < 0) limY = 0;
     return {
-      winW: winW, winH: winH,
-      limX: Math.max(0, (srcW - winW) / 2 / srcW),
-      limY: Math.max(0, (srcH - winH) / 2 / srcH),
+      winW: winW2, winH: winH2, baseW: srcW, baseH: srcH,
+      xMin: -limX, xMax: limX, yMin: -limY, yMax: limY,
     };
   }
 
-  /** [对齐 App] dragAdjustBy：像素位移 → offset，内容跟随手指。 */
+  /** [对齐 App] dragAdjustBy：增量式移动采样窗口（C 方案下可拖出裁剪范围）。 */
   function dragAdjustBy(dxPx, dyPx, boxW, boxH) {
     if (!VM.sourceBitmap || boxW <= 0 || boxH <= 0) return;
     var L = dragLimits();
-    // 完全没有可移动空间（图片已完整覆盖采样窗口）：提示先放大
-    if (L.limX <= 0 && L.limY <= 0) {
+    if (L.xMax - L.xMin <= 0.0001 && L.yMax - L.yMin <= 0.0001) {
       var now = Date.now();
       if (now - (VM._dragHintAt || 0) > 2500) {
         VM._dragHintAt = now;
@@ -1119,23 +1359,21 @@
       }
       return;
     }
-    VM.offsetX = clamp(VM.offsetX, -L.limX, L.limX);
-    VM.offsetY = clamp(VM.offsetY, -L.limY, L.limY);
-    var dOffX = -(dxPx / boxW) * (L.winW / VM.sourceW);
-    var dOffY = -(dyPx / boxH) * (L.winH / VM.sourceH);
-    VM.offsetX = clamp(VM.offsetX + dOffX, -L.limX, L.limX);
-    VM.offsetY = clamp(VM.offsetY + dOffY, -L.limY, L.limY);
+    var dOffX = -(dxPx / boxW) * (L.winW / L.baseW);
+    var dOffY = -(dyPx / boxH) * (L.winH / L.baseH);
+    VM.offsetX = clamp(VM.offsetX + dOffX, L.xMin, L.xMax);
+    VM.offsetY = clamp(VM.offsetY + dOffY, L.yMin, L.yMax);
   }
 
   /** [对齐 App] dragAdjustZoom：缩放采样区域并重新约束 offset。 */
   function dragAdjustZoom(factor) {
     if (!VM.sourceBitmap) return;
-    var ns = clamp(VM.scale * factor, 1, 12);
+    var ns = clamp(VM.scale * factor, 0.5, 12);
     if (ns === VM.scale) return;
     VM.scale = ns;
     var L = dragLimits();
-    VM.offsetX = clamp(VM.offsetX, -L.limX, L.limX);
-    VM.offsetY = clamp(VM.offsetY, -L.limY, L.limY);
+    VM.offsetX = clamp(VM.offsetX, L.xMin, L.xMax);
+    VM.offsetY = clamp(VM.offsetY, L.yMin, L.yMax);
   }
 
   // ==================== 操作行 ====================
@@ -1440,16 +1678,16 @@
 
     // ---------- 工具栏（图标 + 文字，同 ToolBar） ----------
     var tools = [
-      { id: 'brush', key: 'editor_tool_pencil', icon: '<path d="M14.5,5.5l4,4M4,20l1,-4.5L15.5,5a2.12,2.12 0 0 1 3,3L8,18.5 4,20z"/>' },
-      { id: 'eraser', key: 'editor_tool_eraser', icon: '<path d="M20,20H8l-6,-6a2,2 0 0 1 0,-3l8,-8a2,2 0 0 1 3,0l5,5a2,2 0 0 1 0,3l-8,8"/>' },
-      { id: 'eyedropper', key: 'editor_tool_eyedropper', icon: '<path d="M17.66,5.41l0.92,0.92M17.67,3a2.4,2.4 0 1 1 3.4,3.4l-3.12,3.12M6.92,19L5,17.08l8.06,-8.06 1.92,1.92z"/>' },
-      { id: 'fill', key: 'editor_tool_fill', icon: '<path d="M19,11l-8,-8 -8.5,8.5a2,2 0 0 0 0,3L9,21a2,2 0 0 0 3,0z"/><path d="M5,2l5,5"/>' }
+      { id: 'brush', key: 'editor_tool_pencil', icon: '<path fill="currentColor" stroke="none" d="M3,17.25V21h3.75L17.81,9.94l-3.75,-3.75L3,17.25zM20.71,7.04c0.39,-0.39 0.39,-1.02 0,-1.41l-2.34,-2.34c-0.39,-0.39 -1.02,-0.39 -1.41,0l-1.83,1.83 3.75,3.75 1.83,-1.83z"/>' },
+      { id: 'eraser', key: 'editor_tool_eraser', icon: '<path fill="currentColor" stroke="none" d="M7.5,5.6L10,7 8.6,9.5 6.1,8.1 7.5,5.6M19.5,15.4L22,16.8 20.6,19.3 18.1,17.9 19.5,15.4M22,5.8L20.6,3.3 18.1,4.7 19.5,7.2 22,5.8M13.6,8.4L11.1,7 12.5,4.5 15,5.9 13.6,8.4M7.8,14.8L5.3,13.4 6.7,10.9 9.2,12.3 7.8,14.8M11.4,19.4L8.9,18 10.3,15.5 12.8,16.9 11.4,19.4M19.1,9.4L16.6,8 18,5.5 20.5,6.9 19.1,9.4M4.9,9.4L2.4,8 3.8,5.5 6.3,6.9 4.9,9.4M16.6,20.4L14.1,19 15.5,16.5 18,17.9 16.6,20.4M2.5,19.4L5,18 3.6,15.5 1.1,16.9 2.5,19.4z"/>' },
+      { id: 'eyedropper', key: 'editor_tool_eyedropper', icon: '<path fill="currentColor" stroke="none" d="M17.66,5.41l0.92,0.92 -2.69,2.69 -0.92,-0.92 2.69,-2.69M17.67,3c-0.26,0 -0.51,0.1 -0.71,0.29l-3.12,3.12 -1.93,-1.91 -1.41,1.41 0.42,0.42 -3.25,3.25V21h4.75l8.92,-8.92 0.42,0.42 1.41,-1.41 -1.92,-1.92 3.12,-3.12c0.4,-0.4 0.4,-1.03 0,-1.42l-2.34,-2.34c-0.2,-0.19 -0.45,-0.29 -0.71,-0.29zM6.92,19L5,17.08l8.06,-8.06 1.92,1.92L6.92,19z"/>' },
+      { id: 'fill', key: 'editor_tool_fill', icon: '<path fill="currentColor" stroke="none" d="M16.56,8.94L7.62,0 6.21,1.41l2.38,2.38 -5.15,5.15c-0.59,0.59 -0.59,1.54 0,2.12l5.5,5.5c0.29,0.29 0.68,0.44 1.06,0.44s0.77,-0.15 1.06,-0.44l5.5,-5.5c0.59,-0.58 0.59,-1.53 0,-2.12zM5.21,10L10,5.21 14.79,10H5.21zM19,11.5s-2,2.17 -2,3.5c0,1.1 0.9,2 2,2s2,-0.9 2,-2c0,-1.33 -2,-3.5 -2,-3.5z"/>' }
     ];
     var edTools = $('edTools');
     tools.forEach(function (t) {
       var b = document.createElement('button');
       b.className = 'pcp-ed-tool' + (VM.editTool === t.id ? ' is-active' : '');
-      b.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">' + t.icon + '</svg>' +
+      b.innerHTML = '<svg viewBox="0 0 24 24" fill="none">' + t.icon + '</svg>' +
         '<span>' + S(t.key) + '</span>';
       b.onclick = function () {
         VM.editTool = t.id;
@@ -1501,6 +1739,333 @@
   }
 
   /** [对齐 App] EditorScreen 的调色板：从当前作品提取颜色 + 「+」添加。 */
+  function renderEditorPalette() {
+    var box = $('edPalette');
+    if (!box || !VM.editPixels) return;
+    box.innerHTML = '';
+
+    var seen = {};
+    for (var i = 0; i < VM.editPixels.length; i++) {
+      var c = VM.editPixels[i];
+      if (((c >>> 24) & 0xFF) === 0) continue;
+      seen[c >>> 0] = c;
+    }
+    var colors = Object.keys(seen).map(Number).sort(function (a, b) { return a - b; });
+
+    // 「+」添加颜色
+    var add = document.createElement('button');
+    add.className = 'pcp-pal-add';
+    add.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>';
+    add.onclick = function () {
+      var inp = document.createElement('input');
+      inp.type = 'color';
+      inp.value = '#' + ((VM.editColor >>> 0) & 0xFFFFFF).toString(16).padStart(6, '0');
+      inp.style.cssText = 'position:fixed;left:-9999px';
+      document.body.appendChild(inp);
+      inp.onchange = function () {
+        VM.editColor = Codec.parseHex(inp.value);
+        document.body.removeChild(inp);
+        renderEditorPalette();
+      };
+      inp.click();
+    };
+    box.appendChild(add);
+
+    colors.forEach(function (cv) {
+      var b = document.createElement('button');
+      var hex = '#' + ((cv >>> 0) & 0xFFFFFF).toString(16).padStart(6, '0');
+      b.className = 'pcp-pal-color' + (VM.editColor === cv ? ' is-active' : '');
+      b.style.background = hex;
+      b.title = hex;
+      b.onclick = function () {
+        VM.editColor = cv;
+        renderEditorPalette();
+      };
+      box.appendChild(b);
+    });
+  }
+
+  /** 选颜色（自定义）：App 是 ColorSheet，网页用原生取色器。 */
+  function pickEditorColor() {
+    var inp = document.createElement('input');
+    inp.type = 'color';
+    inp.value = '#' + ((VM.editColor >>> 0) & 0xFFFFFF).toString(16).padStart(6, '0');
+    inp.style.cssText = 'position:fixed;left:-9999px';
+    document.body.appendChild(inp);
+    inp.onchange = function () {
+      VM.editColor = Codec.parseHex(inp.value);
+      document.body.removeChild(inp);
+      renderEditorPalette();
+      renderEdInfo();
+    };
+    inp.click();
+  }
+
+  /** 颜色信息卡片（同 ColorInfoCard）：当前色块 + hex + 选中坐标。 */
+  function renderEdInfo() {
+    var sw = $('edSwatch'), hx = $('edHex'), co = $('edCoord');
+    if (!sw) return;
+    var cur = VM.editColor;
+    var hex = '#' + ((cur >>> 0) & 0xFFFFFF).toString(16).padStart(6, '0').toUpperCase();
+    sw.style.background = hex;
+    hx.textContent = hex;
+    var idx = VM.edSel;
+    if (idx != null && idx >= 0 && idx < VM.editPixels.length) {
+      var x = idx % VM.editW;
+      var y = (idx / VM.editW) | 0;
+      var c = VM.editPixels[idx];
+      var ch = '#' + ((c >>> 0) & 0xFFFFFF).toString(16).padStart(6, '0').toUpperCase();
+      var a = (c >>> 24) & 0xFF;
+      co.innerHTML =
+        '<span class="pcp-ed-coord-dot" style="background:' + ch + '"></span>' +
+        '<span class="pcp-ed-coord-txt">' + S('editor_coord') + ': (' + x + ', ' + y + ')<br>' +
+        ch + '  A=' + a + '</span>';
+      co.classList.add('is-on');
+    } else {
+      co.innerHTML = '';
+      co.classList.remove('is-on');
+    }
+  }
+
+  /** 添加图片到首页 / 保存图片（同 addEditorArtToHome / saveEditorArt）。 */
+  function editorToHome(withToast) {
+    if (!VM.editPixels) return;
+    VM.pixelArt = new Int32Array(VM.editPixels);
+    VM.artW = VM.editW;
+    VM.artH = VM.editH;
+    VM.isPixelated = true;
+    var sb = $('saveAlbumBtn');
+    if (sb) sb.disabled = false;
+    drawPreview();
+    renderPalette();
+    renderCodes();
+    toast(S(withToast ? 'editor_saved' : 'editor_added_to_home'));
+    if (!withToast) {
+      var sub = $('subEditor');
+      if (sub) sub.remove();
+      VM.subScreen = null;
+    }
+  }
+
+  /** 导出 PNG（App 用 PngExporter 写相册，网页用下载）。 */
+  function exportEditorPng() {
+    if (!VM.editPixels) return;
+    var W = VM.editW, H = VM.editH;
+    var c = document.createElement('canvas');
+    c.width = W; c.height = H;
+    var cx = c.getContext('2d');
+    var img = cx.createImageData(W, H);
+    for (var i = 0; i < W * H; i++) {
+      var p = VM.editPixels[i];
+      img.data[i * 4] = (p >>> 16) & 0xFF;
+      img.data[i * 4 + 1] = (p >>> 8) & 0xFF;
+      img.data[i * 4 + 2] = p & 0xFF;
+      img.data[i * 4 + 3] = (p >>> 24) & 0xFF;
+    }
+    cx.putImageData(img, 0, 0);
+    c.toBlob(function (blob) {
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'pixel_art_' + Date.now() + '.png';
+      a.click();
+      setTimeout(function () { URL.revokeObjectURL(a.href); }, 3000);
+      toast(S('editor_saved'));
+    }, 'image/png');
+  }
+
+  /** 全部填充为当前颜色（同 editorFillAll）。 */
+  function fillEditorAll() {
+    if (!VM.editPixels) return;
+    pushUndo();
+    VM.editPixels.fill(VM.editColor);
+    renderEditor();
+    renderEditorPalette();
+    renderEdInfo();
+  }
+
+  var edCtx = null, edPainting = false, edLastX = -1, edLastY = -1;
+
+  /** 编码页右侧快速定位滑块（同 QuickBar）。 */
+  function initQuickBar() {
+    var sc = $('codeScroll'), qb = $('codeQb'), th = $('codeQbThumb');
+    if (!sc || !qb || !th) return;
+
+    function sync() {
+      if (!VM.pixelArt) { qb.hidden = true; return; }
+      var total = sc.scrollHeight - sc.clientHeight;
+      if (total <= 4) { qb.hidden = true; return; }
+      qb.hidden = false;
+      var trackH = qb.clientHeight;
+      var visRatio = Math.min(1, Math.max(0.05, sc.clientHeight / Math.max(1, sc.scrollHeight)));
+      var thH = Math.max(28, Math.round(trackH * visRatio));
+      th.style.height = thH + 'px';
+      var f = total > 0 ? sc.scrollTop / total : 0;
+      th.style.top = Math.round(f * (trackH - thH)) + 'px';
+    }
+    VM._syncQuickBar = sync;
+
+    var dragging = false;
+    function seek(e) {
+      var r = qb.getBoundingClientRect();
+      var f = clamp((e.clientY - r.top) / r.height, 0, 1);
+      sc.scrollTop = f * (sc.scrollHeight - sc.clientHeight);
+      sync();
+    }
+    qb.addEventListener('pointerdown', function (e) {
+      dragging = true;
+      qb.classList.add('is-pressed');
+      try { qb.setPointerCapture(e.pointerId); } catch (err) {}
+      seek(e);
+      e.preventDefault();
+    });
+    qb.addEventListener('pointermove', function (e) {
+      if (!dragging) return;
+      e.preventDefault();
+      seek(e);
+    });
+    function up() { dragging = false; qb.classList.remove('is-pressed'); }
+    qb.addEventListener('pointerup', up);
+    qb.addEventListener('pointercancel', up);
+    sc.addEventListener('scroll', sync, { passive: true });
+    window.addEventListener('resize', sync);
+    sync();
+  }
+
+  function initEditorCanvas() {
+    var cv = $('editorCanvas');
+    if (!cv) return;
+
+    function cellFrom(e) {
+      var r = cv.getBoundingClientRect();
+      return {
+        x: clamp(Math.floor((e.clientX - r.left) / r.width * VM.editW), 0, VM.editW - 1),
+        y: clamp(Math.floor((e.clientY - r.top) / r.height * VM.editH), 0, VM.editH - 1)
+      };
+    }
+
+    function paint(e) {
+      var c = cellFrom(e);
+      if (c.x === edLastX && c.y === edLastY) return;
+      edLastX = c.x; edLastY = c.y;
+      VM.edSel = c.y * VM.editW + c.x;
+      if (VM.editTool === 'brush') VM.editPixels[c.y * VM.editW + c.x] = VM.editColor;
+      else if (VM.editTool === 'eraser') VM.editPixels[c.y * VM.editW + c.x] = 0;
+      renderEditor();
+      renderEdInfo();
+    }
+
+    cv.addEventListener('pointerdown', function (e) {
+      e.preventDefault();
+      var c = cellFrom(e);
+      VM.edSel = c.y * VM.editW + c.x;
+
+      if (VM.editTool === 'eyedropper') {
+        var col = VM.editPixels[c.y * VM.editW + c.x];
+        if ((col >>> 24) !== 0) {
+          VM.editColor = col;
+          var ci = document.querySelector('.pcp-color-input');
+          if (ci) ci.value = Codec.hexOf(col);
+          toast(Codec.hexOf(col));
+        }
+        renderEdInfo();
+        return;
+      }
+
+      pushUndo();
+
+      if (VM.editTool === 'fill') {
+        doFill(c.x, c.y, VM.editColor);
+        renderEditor();
+        renderEdInfo();
+        return;
+      }
+
+      edPainting = true;
+      edLastX = -1; edLastY = -1;
+      paint(e);
+      cv.setPointerCapture(e.pointerId);
+    });
+
+    cv.addEventListener('pointermove', function (e) {
+      if (!edPainting) return;
+      e.preventDefault();
+      paint(e);
+    });
+
+    function stop(e) {
+      edPainting = false;
+      edLastX = -1; edLastY = -1;
+      try { cv.releasePointerCapture(e.pointerId); } catch (x) {}
+    }
+    cv.addEventListener('pointerup', stop);
+    cv.addEventListener('pointercancel', stop);
+  }
+
+  function renderEditor() {
+    var cv = $('editorCanvas');
+    if (!cv || !VM.editPixels) return;
+    var W = VM.editW, H = VM.editH;
+
+    var wrapEl = document.querySelector('.pcp-editor-wrap');
+    var wrapH = wrapEl ? wrapEl.clientHeight - 24 : Math.min(window.innerHeight * 0.5, 460);
+    var maxH = Math.max(160, wrapH);
+    var maxW = window.innerWidth - 60;
+    var s = Math.min(maxW / W, maxH / H);
+    var mult = s >= 1 ? Math.max(1, Math.floor(s)) : s;
+    var cw = Math.max(1, Math.round(W * mult));
+    var ch = Math.max(1, Math.round(H * mult));
+
+    cv.width = cw;
+    cv.height = ch;
+    var ctx = cv.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+
+    // 一次性 ImageData 绘制（999×999 也不会卡）
+    var img = ctx.createImageData(cw, ch);
+    var d = img.data;
+    for (var y = 0; y < H; y++) {
+      var y0 = Math.floor(y * mult);
+      var y1 = Math.max(y0 + 1, Math.floor((y + 1) * mult));
+      for (var x = 0; x < W; x++) {
+        var c = VM.editPixels[y * W + x];
+        var a = (c >>> 24) & 0xFF;
+        var r = (c >>> 16) & 0xFF, g = (c >>> 8) & 0xFF, b = c & 0xFF;
+        var x0 = Math.floor(x * mult);
+        var x1 = Math.max(x0 + 1, Math.floor((x + 1) * mult));
+        for (var py = y0; py < y1; py++) {
+          var base = py * cw * 4;
+          for (var px = x0; px < x1; px++) {
+            var i = base + px * 4;
+            if (a === 0) {
+              // 棋盘格底纹（同 drawCheckerFill）
+              var cx = Math.floor(px / Math.max(1, mult));
+              var cy2 = Math.floor(py / Math.max(1, mult));
+              var v = ((cx + cy2) & 1) ? 168 : 196;
+              d[i] = v; d[i + 1] = v; d[i + 2] = v; d[i + 3] = 255;
+            } else {
+              d[i] = r; d[i + 1] = g; d[i + 2] = b; d[i + 3] = a;
+            }
+          }
+        }
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+
+    // 网格线（格子够大时才画）
+    if (mult >= 6 && W <= 200 && H <= 200) {
+      ctx.strokeStyle = 'rgba(128,128,128,0.22)';
+      ctx.lineWidth = 1;
+      for (var gx = 1; gx < W; gx++) {
+        var px2 = Math.round(gx * mult) + 0.5;
+        ctx.beginPath(); ctx.moveTo(px2, 0); ctx.lineTo(px2, ch); ctx.stroke();
+      }
+      for (var gy = 1; gy < H; gy++) {
+        var py2 = Math.round(gy * mult) + 0.5;
+        ctx.beginPath(); ctx.moveTo(0, py2); ctx.lineTo(cw, py2); ctx.stroke();
+      }
+    }
+  }
+
   function renderEditorPalette() {
     var box = $('edPalette');
     if (!box || !VM.editPixels) return;
@@ -2143,6 +2708,8 @@
       VM.sourceBitmap = out;
       VM.sourceW = srcCw;
       VM.sourceH = srcCh;
+      // [C 方案] 记录裁剪矩形在原图中的位置，供拖拽调整超出裁剪范围
+      VM.cropRect = { x: srcX, y: srcY, w: srcCw, h: srcCh };
       VM.scale = 1; VM.offsetX = 0; VM.offsetY = 0; VM.rotation = 0;
 
       sub.remove();
@@ -2186,6 +2753,7 @@
   // ==================== 初始化 ====================
   function boot() {
     initQuickBar();
+    initPaletteView();
     // 语言
     try {
       var l = localStorage.getItem('pcp.lang');
