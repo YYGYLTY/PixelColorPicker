@@ -189,15 +189,14 @@
   }
 
   // ==================== 欢迎动画（复刻 WelcomeAnimation.kt） ====================
+  // 源码：welcomeText 与 appName 在同一个 Row 内，渲染为一行
   function playWelcome() {
     var welcomeText = S('welcome_prefix');
     var appName = 'PixelColorPicker';
     var wl = $('welcomeLine');
-    var al = $('appLine');
     var tap = $('tapHint');
 
     wl.innerHTML = '';
-    al.innerHTML = '';
     tap.classList.remove('show');
 
     welcomeText.split('').forEach(function (ch) {
@@ -208,45 +207,39 @@
     });
     appName.split('').forEach(function (ch) {
       var s = document.createElement('span');
-      s.className = 'ch';
+      s.className = 'ch pcp-ch-app';
       s.textContent = ch;
-      al.appendChild(s);
+      wl.appendChild(s);
     });
 
     var wchs = wl.querySelectorAll('.ch');
-    var achs = al.querySelectorAll('.ch');
 
     if (VM.welcomePlayed) {
       wchs.forEach(function (c) { c.classList.add('show'); });
-      achs.forEach(function (c) { c.classList.add('show'); });
       tap.classList.add('show');
       return;
     }
 
     var i = 0;
-    function stepW() {
+    var welcomeLen = welcomeText.length;
+    function step() {
       if (i >= wchs.length) {
-        setTimeout(function () { stepA(0); }, 280);
-        return;
-      }
-      wchs[i].classList.add('show');
-      i++;
-      setTimeout(stepW, 80);
-    }
-
-    function stepA(k) {
-      if (k >= achs.length) {
         setTimeout(function () {
           tap.classList.add('show');
           VM.welcomePlayed = true;
         }, 200);
         return;
       }
-      achs[k].classList.add('show');
-      setTimeout(function () { stepA(k + 1); }, 30);
+      wchs[i].classList.add('show');
+      i++;
+      // 「欢迎使用」80ms/字；app 名 30ms/字（中间 280ms 停顿）
+      if (i === welcomeLen) {
+        setTimeout(step, 280);
+      } else {
+        setTimeout(step, i < welcomeLen ? 80 : 30);
+      }
     }
-
-    setTimeout(stepW, 120);
+    setTimeout(step, 120);
   }
 
   // ==================== 预设尺寸 ====================
@@ -264,20 +257,44 @@
   function renderPresets() {
     var box = $('presetList');
     box.innerHTML = '';
-    // 只显示前 2 个（对应源码 preset1 / preset2）
+
+    // 两个预设 chip + 一个「⋯」chip（对应 PresetChip x2 + MoreChip）
     for (var i = 0; i < 2; i++) {
       var p = presetSize(i);
       var b = document.createElement('button');
-      b.className = 'pcp-preset-btn';
-      b.textContent = p[0] + '×' + p[1];
+      b.className = 'pcp-preset-chip';
       if (p[0] === VM.canvasWidth && p[1] === VM.canvasHeight) {
         b.classList.add('is-active');
       }
-      (function (w, h) {
-        b.addEventListener('click', function () { setCanvasSize(w, h); });
-      })(p[0], p[1]);
+      var t = document.createElement('span');
+      t.className = 't';
+      t.textContent = p[0];
+      var x = document.createElement('span');
+      x.className = 'x';
+      x.textContent = '×';
+      var bo = document.createElement('span');
+      bo.className = 'b';
+      bo.textContent = p[1];
+      b.appendChild(t); b.appendChild(x); b.appendChild(bo);
+      (function (w, h, el) {
+        el.addEventListener('click', function () {
+          // 复刻旧版：点击选中，再点取消
+          if (el.classList.contains('is-active')) {
+            el.classList.remove('is-active');
+            return;
+          }
+          setCanvasSize(w, h);
+        });
+      })(p[0], p[1], b);
       box.appendChild(b);
     }
+
+    // MoreChip：三个小灰点
+    var more = document.createElement('button');
+    more.className = 'pcp-preset-chip pcp-more-chip';
+    more.innerHTML = '<i></i><i></i><i></i>';
+    more.addEventListener('click', showPresetDialog);
+    box.appendChild(more);
   }
 
   // ==================== 画布尺寸 ====================
@@ -345,9 +362,17 @@
     if (!VM.sourceBitmap) { cv.hidden = true; return; }
     cv.hidden = false;
 
-    // 用当前变换做实时预览（1024 上限保证性能）
-    var pw = Math.min(VM.canvasWidth, 512);
-    var ph = Math.min(VM.canvasHeight, 512);
+    // 预览直接用画布尺寸渲染（CSS 放大后 pixelated，保持锐利）
+    var pw = VM.canvasWidth;
+    var ph = VM.canvasHeight;
+    // 超大画布限制到 512 以内，保证拖动/调参时流畅
+    var mx = Math.max(pw, ph);
+    if (mx > 512) {
+      var k = 512 / mx;
+      pw = Math.max(1, Math.round(pw * k));
+      ph = Math.max(1, Math.round(ph * k));
+    }
+
     var out;
     try {
       out = Pix.pixelate(VM.sourceBitmap, VM.sourceW, VM.sourceH, pw, ph, {
@@ -363,6 +388,8 @@
     cv.getContext('2d').putImageData(toImageData(out, pw, ph), 0, 0);
     cv.style.width = '100%';
     cv.style.height = 'auto';
+    cv.style.maxWidth = '100%';
+    cv.style.maxHeight = '100%';
     cv.style.aspectRatio = pw + ' / ' + ph;
   }
 
@@ -706,7 +733,7 @@
 
   // ==================== 微调 ====================
   function initFineTune() {
-    var btns = document.querySelectorAll('.pcp-ft-btn');
+    var btns = document.querySelectorAll('.pcp-micro-btn, .pcp-sq-btn');
     for (var i = 0; i < btns.length; i++) {
       btns[i].addEventListener('click', function () {
         var act = this.getAttribute('data-ft');
@@ -725,13 +752,6 @@
               return;
             }
             VM.rotation += (act === 'cw' ? 90 : -90);
-            break;
-          case 'drag':
-            VM.dragAdjustEnabled = !VM.dragAdjustEnabled;
-            this.classList.toggle('is-on', VM.dragAdjustEnabled);
-            return;
-          case 'reset':
-            VM.scale = 1; VM.offsetX = 0; VM.offsetY = 0; VM.rotation = 0;
             break;
         }
         drawPreview();
@@ -898,9 +918,19 @@
       '<div class="pcp-set-row">' +
       '<div class="pcp-set-main">' +
       '<div class="pcp-set-title">' + S('settings_theme') + '</div>' +
-      '<div class="pcp-set-desc">' + S(THEME_LABEL[VM.themeMode]) + '</div>' +
+      '<div class="pcp-set-desc" id="themeDesc">' + S(THEME_LABEL[VM.themeMode]) + '</div>' +
       '</div>' +
-      '<div class="pcp-set-value" id="themeVal">' + S(THEME_LABEL[VM.themeMode]) +
+      '<div class="pcp-set-value" id="themeVal"><span id="themeLabel">' + S(THEME_LABEL[VM.themeMode]) + '</span>' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>' +
+      '</div>' +
+      '</div>' +
+
+      '<div class="pcp-set-row">' +
+      '<div class="pcp-set-main">' +
+      '<div class="pcp-set-title">Language</div>' +
+      '<div class="pcp-set-desc" id="langDesc">' + LANG_NAME[lang] + '</div>' +
+      '</div>' +
+      '<div class="pcp-set-value" id="langVal"><span id="langLabel">' + LANG_NAME[lang] + '</span>' +
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>' +
       '</div>' +
       '</div>' +
@@ -914,22 +944,42 @@
     $('app').appendChild(sub);
 
     $('setBack').onclick = function () { sub.remove(); };
+
     $('swAuto').onclick = function () {
       VM.autoGenerate = !VM.autoGenerate;
       this.classList.toggle('on', VM.autoGenerate);
       try { localStorage.setItem('pcp.autoGen', VM.autoGenerate ? '1' : '0'); } catch (e) {}
     };
+
     $('themeVal').onclick = function () {
       var modes = ['system', 'light', 'dark'];
       var idx = modes.indexOf(VM.themeMode);
       VM.themeMode = modes[(idx + 1) % 3];
       try { localStorage.setItem('pcp.theme', VM.themeMode); } catch (e) {}
       applyTheme();
-      this.previousElementSibling.querySelector('.pcp-set-desc').textContent =
-        S(THEME_LABEL[VM.themeMode]);
-      this.childNodes[0].nodeValue = S(THEME_LABEL[VM.themeMode]);
+      var txt = S(THEME_LABEL[VM.themeMode]);
+      $('themeDesc').textContent = txt;
+      $('themeLabel').textContent = txt;
+    };
+
+    $('langVal').onclick = function () {
+      var langs = ['zh', 'en', 'ja'];
+      var i = langs.indexOf(lang);
+      lang = langs[(i + 1) % 3];
+      try { localStorage.setItem('pcp.lang', lang); } catch (e) {}
+      applyI18n();
+      renderPresets();
+      renderAlgos();
+      renderKernels();
+      renderCodes();
+      playWelcome();
+      renderAbout();
+      $('langDesc').textContent = LANG_NAME[lang];
+      $('langLabel').textContent = LANG_NAME[lang];
     };
   }
+
+  var LANG_NAME = { zh: '简体中文', en: 'English', ja: '日本語' };
 
   // ==================== 关于页 ====================
   // 文案与结构完全对应 AboutScreen.kt + strings.xml 的 about_* 条目
@@ -1284,10 +1334,35 @@
       renderPresets();
       drawPreview();
     };
-    $('moreSizeBtn').onclick = showPresetDialog;
 
-    // 图片选择
+    // 拖拽调整胶囊
+    $('dragPill').onclick = function () {
+      VM.dragAdjustEnabled = !VM.dragAdjustEnabled;
+      this.classList.toggle('is-on', VM.dragAdjustEnabled);
+    };
+
+    // 重置胶囊（二次确认，对应 FineTuneCard 的 AlertDialog）
+    $('resetPill').onclick = function () {
+      openDialog(
+        '<h3 class="pcp-dialog-title">' + S('fine_tune_reset_title') + '</h3>' +
+        '<div class="pcp-dialog-body">' + S('fine_tune_reset_message') + '</div>' +
+        '<div class="pcp-dialog-actions">' +
+        '<button class="pcp-dialog-btn" id="rsCancel">' + S('action_cancel') + '</button>' +
+        '<button class="pcp-dialog-btn primary" id="rsOk" style="background:' + 'var(--pcp-DarkError)' + '">' + S('reset') + '</button>' +
+        '</div>'
+      );
+      $('rsCancel').onclick = closeDialog;
+      $('rsOk').onclick = function () {
+        VM.scale = 1; VM.offsetX = 0; VM.offsetY = 0; VM.rotation = 0;
+        drawPreview();
+        drawCustomPreview();
+        closeDialog();
+      };
+    };
+
+    // 图片选择（拖拽调整模式下点击不触发选图）
     $('displayBox').onclick = function () {
+      if (VM.dragAdjustEnabled) return;
       if (!VM.sourceBitmap) $('fileInput').click();
     };
     $('changeImgBtn').onclick = function () { $('fileInput').click(); };
@@ -1321,9 +1396,8 @@
     $('saveAlbumBtn').onclick = saveAlbum;
     $('newCanvasBtn').onclick = openEditor;
 
-    // 设置 / 语言
+    // 设置
     $('settingsBtn').onclick = openSettings;
-    $('langBtn').onclick = showLangDialog;
 
     // 微调
     initFineTune();

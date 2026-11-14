@@ -1,41 +1,61 @@
 /* ===================================================================
-   首页样式 · 严格对应 HomeScreen.kt 第 178-560 行结构
+   首页样式 · 严格对应 HomeScreen.kt
+   TopHeader(437) CanvasSizeCard(509) CommonSizesCard(624)
+   NewCanvasCard(862) GenerateCard(936) FineTuneCard(1127)
    =================================================================== */
 
-/* ---------- 1. 顶部标题行 TopHeader ---------- */
+/* ---------- 关键修复：[hidden] 必须生效（此前被 canvas{display:block} 覆盖） ---------- */
+[hidden] { display: none !important; }
+
+/* ---------- 1. TopHeader ---------- */
 .pcp-top-header {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding-bottom: 2px;
+}
+
+/* Logo：44dp 圆形底 + 32dp 图标 */
+.pcp-top-logo-wrap {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--pcp-CircleIconBg);
+  border: 1px solid var(--pcp-CircleIconStroke);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
 }
 
 .pcp-top-logo {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  overflow: hidden;
-  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  display: block;
 }
 
 .pcp-top-titles {
   flex: 1;
   min-width: 0;
+  margin-left: 12px;
 }
 
+/* 标题：整字渐变 淡紫 → 天依蓝，23sp ExtraBold */
 .pcp-top-title {
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: -0.2px;
-  color: var(--pcp-TextPrimary);
+  font-size: 23px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
   margin: 0;
+  line-height: 1.15;
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
+  background: linear-gradient(90deg, #A99BFF, #66CCFF);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
 }
 
 .pcp-top-sub {
-  font-size: 11.5px;
+  font-size: 11px;
   color: var(--pcp-TextSecondary);
   margin: 1px 0 0;
   white-space: nowrap;
@@ -43,132 +63,173 @@
   text-overflow: ellipsis;
 }
 
-.pcp-top-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
-/* ---------- 2. 画布尺寸卡片 CanvasSizeCard ---------- */
-.pcp-size-card {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.pcp-size-head {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.pcp-size-title {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--pcp-TextPrimary);
-}
-
-.pcp-size-body {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.pcp-size-item {
-  flex: 1;
-  min-width: 0;
-  text-align: center;
-  padding: 7px 4px;
-  border-radius: 8px;
-  background: var(--pcp-InputBackground);
-  border: 1px solid var(--pcp-InputBorder);
-  cursor: pointer;
-  transition: border-color 0.15s;
-}
-
-.pcp-size-item:active { border-color: var(--pcp-Primary); }
-
-.pcp-size-item .k {
-  display: block;
-  font-size: 9.5px;
-  color: var(--pcp-TextSecondary);
-  line-height: 1.2;
-}
-
-.pcp-size-item .v {
-  display: block;
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--pcp-TextPrimary);
-  font-variant-numeric: tabular-nums;
-  line-height: 1.2;
-}
-
-.pcp-swap-btn {
-  width: 26px;
-  height: 26px;
-  border-radius: 8px;
-  border: 1px solid var(--pcp-InputBorder);
-  background: var(--pcp-InputBackground);
-  color: var(--pcp-AccentSwap);
+/* 设置按钮：32dp 圆形底，上移 2dp，右侧 8dp */
+.pcp-settings-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--pcp-CircleIconBg);
+  border: 1px solid var(--pcp-CircleIconStroke);
+  color: var(--pcp-TextIcon);
   display: grid;
   place-items: center;
   cursor: pointer;
-  flex-shrink: 0;
   padding: 0;
+  flex-shrink: 0;
+  margin-left: 4px;
+  margin-right: 8px;
+  transform: translateY(-2px);
 }
 
-.pcp-swap-btn svg { width: 15px; height: 15px; }
+.pcp-settings-btn svg { width: 20px; height: 20px; }
 
-/* ---------- 2b. 常用尺寸卡片 CommonSizesCard ---------- */
-.pcp-preset-card {
+/* ---------- 2. CanvasSizeCard ---------- */
+.pcp-card-title-row {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 8px;
 }
 
-.pcp-preset-list {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
+.pcp-card-title-row svg {
+  width: 18px;
+  height: 18px;
+  color: var(--pcp-TextPrimary);
+  flex-shrink: 0;
 }
 
-.pcp-preset-btn {
+.pcp-card-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--pcp-TextPrimary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* W [32 ▾] ⇄ H [16 ▾] */
+.pcp-size-body {
+  display: flex;
+  align-items: center;
+  margin-top: 12px;
+}
+
+/* SizeInput：40dp 高、6dp 圆角、输入框描边 */
+.pcp-size-input {
   flex: 1;
   min-width: 0;
-  padding: 6px 2px;
-  border-radius: 8px;
+  height: 40px;
+  border-radius: 6px;
   background: var(--pcp-InputBackground);
   border: 1px solid var(--pcp-InputBorder);
-  color: var(--pcp-TextPrimary);
-  font-family: inherit;
+  display: flex;
+  align-items: center;
+  padding: 0 4px;
+  cursor: pointer;
+}
+
+.pcp-size-input .lb {
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
+  color: var(--pcp-TextPrimary);
+  flex-shrink: 0;
+}
+
+.pcp-size-input .val {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--pcp-TextPrimary);
+  width: 30px;
+  text-align: center;
   font-variant-numeric: tabular-nums;
-  cursor: pointer;
-  transition: all 0.15s;
-  white-space: nowrap;
+  flex-shrink: 0;
 }
 
-.pcp-preset-btn.is-active {
-  border-color: var(--pcp-Primary);
-  color: var(--pcp-Primary);
-  background: var(--pcp-AlgorithmSelectedBg);
+.pcp-size-input svg {
+  width: 12px;
+  height: 12px;
+  color: var(--pcp-TextPrimary);
+  margin-left: auto;
+  flex-shrink: 0;
 }
 
-.pcp-preset-more {
-  font-size: 11px;
-  color: var(--pcp-AccentPurple);
-  background: transparent;
+/* 交换按钮：16dp，左右 2dp */
+.pcp-swap-btn {
+  width: 16px;
+  height: 16px;
+  margin: 0 2px;
   border: 0;
+  background: transparent;
+  color: var(--pcp-TextPrimary);
+  display: grid;
+  place-items: center;
   cursor: pointer;
-  font-family: inherit;
-  padding: 2px 0;
-  align-self: flex-start;
+  padding: 0;
+  flex-shrink: 0;
 }
 
-/* ---------- 3. 展示框 ImageDisplayBox ---------- */
+.pcp-swap-btn svg { width: 16px; height: 16px; }
+
+/* ---------- 2b. CommonSizesCard ---------- */
+.pcp-preset-list {
+  display: flex;
+  gap: 4px;
+  margin-top: 12px;
+}
+
+/* PresetChip：40dp 高、6dp 圆角、三行 11/10/11sp */
+.pcp-preset-chip {
+  flex: 1;
+  min-width: 0;
+  height: 40px;
+  border-radius: 6px;
+  background: var(--pcp-InputBackground);
+  border: 1px solid var(--pcp-InputBorder);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  font-family: inherit;
+  transition: border-color 0.15s;
+}
+
+.pcp-preset-chip.is-active {
+  border: 2px solid var(--pcp-AccentPurple);
+}
+
+.pcp-preset-chip .t,
+.pcp-preset-chip .b {
+  font-size: 11px;
+  line-height: 13px;
+  color: var(--pcp-TextPrimary);
+  font-variant-numeric: tabular-nums;
+}
+
+.pcp-preset-chip .x {
+  font-size: 10px;
+  line-height: 10px;
+  color: var(--pcp-TextPrimary);
+}
+
+/* MoreChip：三个小灰点 */
+.pcp-more-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.pcp-more-chip i {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--pcp-TextSecondary);
+  display: block;
+  margin: 1.5px 0;
+}
+
+/* ---------- 3. 展示框 ---------- */
 .pcp-display-box {
   position: relative;
   border-radius: 16px;
@@ -177,7 +238,6 @@
   display: grid;
   place-items: center;
   background: var(--pcp-BgCardSecondary);
-  /* 展开动画：PcpDecelerate */
   animation: displayExpand 0.42s var(--pcp-decelerate) both;
 }
 
@@ -193,14 +253,14 @@
   image-rendering: pixelated;
 }
 
-/* 欢迎动画 */
+/* 欢迎动画：一行「欢迎使用PixelColorPicker」 */
 .pcp-welcome {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 24px;
+  gap: 10px;
+  padding: 20px;
   text-align: center;
 }
 
@@ -208,10 +268,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 19px;
+  font-size: 20px;
   font-weight: 700;
   letter-spacing: 0.3px;
   white-space: nowrap;
+  color: var(--pcp-TextPrimary);
 }
 
 .pcp-welcome-line .ch {
@@ -227,17 +288,16 @@
 }
 
 /* app 名逐字弹性弹出 */
-.pcp-welcome-app .ch {
+.pcp-welcome-line .ch.pcp-ch-app {
   transition: opacity 0.03s linear, transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
   transform: translateX(-30px) scale(0.6);
 }
 
-.pcp-welcome-app .ch.show {
+.pcp-welcome-line .ch.pcp-ch-app.show {
   opacity: 1;
   transform: translateX(0) scale(1);
 }
 
-/* 点击选择图片提示（呼吸） */
 .pcp-welcome-tap {
   font-size: 12px;
   color: var(--pcp-AccentPurple);
@@ -255,15 +315,7 @@
   50%      { opacity: 1; }
 }
 
-/* 展示框内大图标 */
-.pcp-display-icon {
-  width: 54px;
-  height: 54px;
-  color: var(--pcp-TextIcon);
-  opacity: 0.7;
-}
-
-/* ---------- 3b. 操作行（更换图片/重新裁剪/网格/折叠） ---------- */
+/* ---------- 3b. 操作行 ---------- */
 .pcp-actions-row {
   display: flex;
   gap: 8px;
@@ -290,11 +342,7 @@
 
 .pcp-action-btn:active { transform: scale(0.96); }
 
-.pcp-action-btn svg {
-  width: 20px;
-  height: 20px;
-  color: var(--pcp-AccentBlue);
-}
+.pcp-action-btn svg { width: 20px; height: 20px; color: var(--pcp-AccentBlue); }
 
 .pcp-action-btn.is-on {
   border-color: var(--pcp-AccentBlue);
@@ -323,97 +371,235 @@
 
 .pcp-expand-btn svg { width: 22px; height: 22px; }
 
-/* ---------- 4. 画布编辑 + 生成像素画（并排） ---------- */
+/* ---------- 4. 画布编辑 / 生成像素画（横向 Row，18dp 圆角） ---------- */
 .pcp-duo-card {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 16px 10px;
-  min-height: 96px;
-  cursor: pointer;
-  border-radius: 14px;
+  gap: 12px;
+  width: 100%;
+  padding: 14px;
   border: 0;
   background: transparent;
   color: var(--pcp-TextPrimary);
   font-family: inherit;
-  text-align: center;
-  transition: transform 0.1s;
+  text-align: left;
+  cursor: pointer;
   height: 100%;
 }
 
-.pcp-duo-card:active { transform: scale(0.97); }
+.pcp-duo-card:active { filter: brightness(1.06); }
 
+/* 40dp 圆形图标底 */
 .pcp-duo-card .ico {
   width: 40px;
   height: 40px;
   border-radius: 50%;
   display: grid;
   place-items: center;
+  flex-shrink: 0;
 }
 
-.pcp-duo-card .ico svg { width: 20px; height: 20px; }
+.pcp-duo-card .ico svg { width: 21px; height: 21px; }
+
+/* 文字列 */
+.pcp-duo-card .txt {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
 
 .pcp-duo-card .t {
-  font-size: 12.5px;
+  font-size: 14px;
   font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .pcp-duo-card .s {
-  font-size: 10px;
+  font-size: 11px;
+  line-height: 15px;
   color: var(--pcp-TextSecondary);
-  line-height: 1.3;
+  overflow: hidden;
 }
 
-/* 生成卡片：渐变底 */
-.pcp-duo-generate {
-  background: linear-gradient(135deg, var(--pcp-ButtonGradStart), var(--pcp-ButtonGradEnd));
-  color: #fff;
+/* 生成卡：标题加粗 + 右侧箭头 */
+.pcp-duo-generate .t { font-weight: 700; }
+
+.pcp-duo-card .arrow {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  margin-left: 6px;
 }
 
-.pcp-duo-generate .s { color: rgba(255, 255, 255, 0.75); }
+/* 图标配色 */
+.pcp-duo-blue .ico {
+  background: color-mix(in srgb, var(--pcp-AccentPurple) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--pcp-AccentPurple) 45%, transparent);
+}
+.pcp-duo-blue .ico svg { color: var(--pcp-AccentPurple); }
 
-.pcp-duo-generate .ico {
-  background: rgba(255, 255, 255, 0.18);
+.pcp-duo-orange .ico {
+  background: color-mix(in srgb, #FF8A65 16%, transparent);
+  border: 1px solid color-mix(in srgb, #FF8A65 50%, transparent);
+}
+.pcp-duo-orange .ico svg { color: #FF8A65; }
+.pcp-duo-orange .arrow { color: #FF8A65; }
+
+/* 带强调描边的卡片容器（glowCardBorder + accentStroke） */
+.pcp-accent-card {
+  border-radius: 18px;
+  background: linear-gradient(135deg, var(--pcp-GlowStart), var(--pcp-GlowEnd));
+  padding: 1px;
+  height: 100%;
 }
 
-/* ---------- 5. 微调控制 FineTuneCard ---------- */
-.pcp-finetune-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
-  margin-top: 10px;
+.pcp-accent-card > .inner {
+  border-radius: 17px;
+  background: var(--pcp-BgCardPrimary);
+  height: 100%;
+  position: relative;
+  overflow: hidden;
 }
 
-.pcp-ft-btn {
+.pcp-accent-card > .inner::after {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  border-radius: 16px;
+  pointer-events: none;
+  border: 1.5px solid transparent;
+}
+
+.pcp-accent-card.blue > .inner::after {
+  border-color: color-mix(in srgb, var(--pcp-AccentPurple) 75%, transparent);
+}
+
+.pcp-accent-card.orange > .inner::after {
+  border-color: color-mix(in srgb, #FF8A65 80%, transparent);
+}
+
+/* ---------- 5. 微调控制（左2 + 中十字 + 右2） ---------- */
+.pcp-ft-head {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.pcp-ft-head .title {
+  flex: 1;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--pcp-TextPrimary);
+  transform: translateY(-4px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 胶囊按钮：32dp 高、圆角 16、#25283B 底、描边 */
+.pcp-pill {
+  height: 32px;
+  border-radius: 16px;
+  background: #25283B;
+  border: 1px solid var(--pcp-TextSecondary);
+  color: var(--pcp-TextPrimary);
+  font-family: inherit;
+  font-size: 12px;
+  display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 9px 2px;
-  border-radius: 10px;
+  padding: 0 12px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: border-color 0.15s;
+}
+
+.pcp-pill svg { width: 16px; height: 16px; }
+
+.pcp-pill.is-on { border-color: var(--pcp-AccentPurple); }
+
+.pcp-pill.danger {
+  border-color: var(--pcp-DarkError);
+  color: var(--pcp-DarkError);
+}
+
+.pcp-pill.danger svg { color: var(--pcp-DarkError); }
+
+/* 微调主体 */
+.pcp-ft-body {
+  display: flex;
+  align-items: center;
+  margin-top: 16px;
+}
+
+.pcp-ft-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* MicroButton：40dp 高、圆角 12、图标 + 6dp + 文字 */
+.pcp-micro-btn {
+  height: 40px;
+  border-radius: 12px;
   background: var(--pcp-InputBackground);
   border: 1px solid var(--pcp-InputBorder);
   color: var(--pcp-TextPrimary);
   font-family: inherit;
-  font-size: 9.5px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   cursor: pointer;
-  transition: transform 0.1s, border-color 0.15s;
+  padding: 0 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  transition: border-color 0.15s;
 }
 
-.pcp-ft-btn:active { transform: scale(0.94); border-color: var(--pcp-Primary); }
+.pcp-micro-btn:active { border-color: var(--pcp-AccentPurple); }
+.pcp-micro-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
 
-.pcp-ft-btn svg { width: 18px; height: 18px; color: var(--pcp-TextIcon); }
-
-.pcp-ft-btn.is-on {
-  border-color: var(--pcp-AccentBlue);
-  color: var(--pcp-AccentBlue);
+/* 十字方向键：40dp 方块，中间留 40dp 空格 */
+.pcp-cross {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+  margin: 0 8px;
 }
 
-.pcp-ft-btn.is-on svg { color: var(--pcp-AccentBlue); }
+.pcp-cross .row {
+  display: flex;
+  gap: 40px;
+}
 
-/* ---------- 6. 算法选择 AlgorithmCard（横向滑动） ---------- */
+.pcp-sq-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--pcp-InputBackground);
+  border: 1px solid var(--pcp-InputBorder);
+  color: var(--pcp-TextPrimary);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  padding: 0;
+  transition: border-color 0.15s;
+}
+
+.pcp-sq-btn:active { border-color: var(--pcp-AccentPurple); }
+.pcp-sq-btn svg { width: 16px; height: 16px; }
+
+/* ---------- 6. 算法选择（横向滑动） ---------- */
 .pcp-algo-scroll {
   display: flex;
   gap: 8px;
@@ -486,10 +672,7 @@
 
 .pcp-save-btn:active { transform: scale(0.98); border-color: var(--pcp-Primary); }
 
-.pcp-save-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
+.pcp-save-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* ---------- 自定义算法面板 ---------- */
 .pcp-custom-panel {
@@ -523,11 +706,7 @@
   background: var(--pcp-AlgorithmSelectedBg);
 }
 
-.pcp-kernel-item .kn {
-  font-size: 12px;
-  font-weight: 600;
-  flex-shrink: 0;
-}
+.pcp-kernel-item .kn { font-size: 12px; font-weight: 600; flex-shrink: 0; }
 
 .pcp-kernel-item .kd {
   font-size: 9.5px;
@@ -586,4 +765,4 @@
   border: 1px solid var(--pcp-InputBorder);
   image-rendering: pixelated;
   background: var(--pcp-BgCardSecondary);
-} 
+}
