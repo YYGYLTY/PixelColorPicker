@@ -843,3 +843,222 @@
   border: 2px solid var(--pcp-AccentPurple);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--pcp-AccentPurple) 30%, transparent);
 }
+
+/* ================= 编辑器：工具栏（图标 + 文字，同 ToolBar） ================= */
+.pcp-ed-tools {
+  display: flex;
+  gap: 8px;
+  padding: 12px 20px 0;
+}
+.pcp-ed-tool {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 10px 0;
+  border: none;
+  border-radius: 14px;
+  background: var(--pcp-BgCardSecondary);
+  color: var(--pcp-TextSecondary);
+  font-family: inherit;
+  font-size: 11px;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: background .18s, color .18s;
+}
+.pcp-ed-tool svg { width: 22px; height: 22px; }
+.pcp-ed-tool.is-active {
+  background: var(--pcp-Primary);
+  color: #FFFFFF;
+}
+
+/* ================= 编辑器：颜色信息卡片（同 ColorInfoCard） ================= */
+.pcp-ed-info {
+  margin: 12px 20px 0;
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--pcp-BgCardSecondary);
+}
+.pcp-ed-info-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.pcp-ed-swatch {
+  width: 56px;
+  height: 56px;
+  flex: 0 0 auto;
+  padding: 0;
+  border-radius: 14px;
+  border: 2px solid var(--pcp-Primary);
+  cursor: pointer;
+}
+.pcp-ed-info-txt { flex: 1; min-width: 0; }
+.pcp-ed-lbl {
+  font-size: 11px;
+  color: var(--pcp-TextSecondary);
+}
+.pcp-ed-hex {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--pcp-TextPrimary);
+}
+.pcp-ed-custom {
+  flex: 0 0 auto;
+  padding: 9px 14px;
+  border: none;
+  border-radius: 20px;
+  background: var(--pcp-BgCardPrimary);
+  color: var(--pcp-Primary);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.pcp-ed-coord {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+.pcp-ed-coord.is-on { display: flex; }
+.pcp-ed-coord-dot {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  border-radius: 6px;
+  border: 1px solid var(--pcp-BorderInput);
+}
+.pcp-ed-coord-txt {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--pcp-TextSecondary);
+}
+
+/* ================= 编辑器：底部按钮 ================= */
+.pcp-ed-bottom {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 20px 28px;
+}
+.pcp-ed-primary {
+  width: 100%;
+  height: 56px;
+  border: none;
+  border-radius: 16px;
+  background: var(--pcp-Primary);
+  color: #FFFFFF;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  cursor: pointer;
+}
+.pcp-ed-primary:active { filter: brightness(0.94); }
+.pcp-ed-row { display: flex; gap: 10px; }
+.pcp-ed-outline {
+  flex: 1;
+  height: 48px;
+  border-radius: 14px;
+  background: transparent;
+  border: 1px solid var(--pcp-BorderInput);
+  color: var(--pcp-TextPrimary);
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 16px;
+  cursor: pointer;
+}
+.pcp-ed-outline.is-danger {
+  color: var(--pcp-DarkError);
+  border-color: var(--pcp-DarkError);
+}
+
+/* ================= 色板：标题行 + 搜索 ================= */
+.pcp-page-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pcp-page-head .pcp-page-title { flex: 1; min-width: 0; }
+.pcp-pal-search {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--pcp-TextSecondary);
+  cursor: pointer;
+}
+.pcp-pal-search svg { width: 22px; height: 22px; }
+.pcp-pal-search[hidden] { display: none; }
+
+/* 色板占满剩余高度，避免上下被裁 / 双层滚动冲突 */
+#page-palette .pcp-scroll {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding-bottom: 96px;
+}
+#paletteBody {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+#paletteBody[hidden] { display: none; }
+#page-palette .pcp-palette-main {
+  flex: 1;
+  min-height: 0;
+}
+#page-palette .pcp-palette-canvas-wrap {
+  flex: 1;
+  max-height: none;
+  height: auto;
+}
+
+/* ================= 编码页：右侧快速定位滑块（同 QuickBar） ================= */
+#page-code .pcp-scroll { position: relative; }
+.pcp-quickbar {
+  position: absolute;
+  right: 2px;
+  top: 56px;
+  bottom: 112px;
+  width: 20px;
+  touch-action: none;
+  z-index: 5;
+}
+.pcp-quickbar[hidden] { display: none; }
+.pcp-qb-track {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  top: 0;
+  bottom: 0;
+  border-radius: 2px;
+  background: rgba(128,128,128,0.28);
+}
+.pcp-qb-thumb {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 6px;
+  min-height: 28px;
+  border-radius: 3px;
+  background: rgba(128,128,128,0.75);
+  transition: width .15s;
+}
+.pcp-quickbar.is-pressed .pcp-qb-thumb { width: 9px; }
