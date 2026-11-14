@@ -1025,17 +1025,40 @@
 /* ===== 色板：双 QuickBar + 标尺 + 虚拟化视口（同 PaletteGrid） ===== */
 .pcp-pal-hbar {
   height: 18px;
-  margin: 0 28px;
+  margin: 0 30px;
   position: relative;
   touch-action: none;
   flex: 0 0 auto;
 }
+/* 色板/编码滑块：轨道 4px、thumb 6px（同 QuickBar 的 trackW*1.5） */
+.pcp-pal-hbar .pcp-qb-track {
+  position: absolute; left: 0; right: 0; top: 50%;
+  transform: translateY(-50%); height: 4px; border-radius: 2px;
+  background: rgba(128,128,128,0.30);
+}
+.pcp-pal-hbar .pcp-qb-thumb {
+  position: absolute; top: 50%; height: 6px; border-radius: 3px;
+  transform: translateY(-50%); background: rgba(160,165,180,0.85);
+  transition: height .15s;
+}
+.pcp-pal-hbar.is-pressed .pcp-qb-thumb { height: 9px; }
+.pcp-pal-vbar .pcp-qb-track {
+  position: absolute; top: 0; bottom: 0; left: 50%;
+  transform: translateX(-50%); width: 4px; border-radius: 2px;
+  background: rgba(128,128,128,0.30);
+}
+.pcp-pal-vbar .pcp-qb-thumb {
+  position: absolute; left: 50%; width: 6px; border-radius: 3px;
+  transform: translateX(-50%); background: rgba(160,165,180,0.85);
+  transition: width .15s;
+}
+.pcp-pal-vbar.is-pressed .pcp-qb-thumb { width: 9px; }
 .pcp-pal-rx-row {
   display: flex;
   height: 22px;
   flex: 0 0 auto;
 }
-.pcp-pal-rx-pad { width: 28px; flex: 0 0 28px; }
+.pcp-pal-rx-pad { width: 30px; flex: 0 0 30px; }
 .pcp-pal-rx {
   flex: 1;
   position: relative;
@@ -1043,11 +1066,12 @@
 }
 .pcp-pal-rx span {
   position: absolute;
-  top: 3px;
-  font-size: 9px;
+  top: 4px;
+  font-size: 8px;
   color: var(--pcp-TextSecondary);
   transform: translateX(-50%);
   white-space: nowrap;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
 }
 .pcp-pal-main {
   flex: 1;
@@ -1055,18 +1079,19 @@
   display: flex;
 }
 .pcp-pal-ry {
-  width: 28px;
-  flex: 0 0 28px;
+  width: 30px;
+  flex: 0 0 30px;
   position: relative;
   overflow: hidden;
 }
 .pcp-pal-ry span {
   position: absolute;
-  right: 4px;
-  font-size: 9px;
+  right: 3px;
+  font-size: 8px;
   color: var(--pcp-TextSecondary);
   transform: translateY(-50%);
   white-space: nowrap;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
 }
 .pcp-pal-view {
   flex: 1;
@@ -1108,12 +1133,21 @@
 .pcp-quickbar {
   position: fixed;
   right: 4px;
-  top: 120px;
-  bottom: 150px;
+  top: 128px;
+  bottom: 148px;
   width: 20px;
   touch-action: none;
   z-index: 60;
 }
+/* 编码页滑块：轨道 4px、thumb 6px（同 QuickBar） */
+.pcp-quickbar .pcp-qb-track {
+  width: 4px; border-radius: 2px; background: rgba(128,128,128,0.30);
+}
+.pcp-quickbar .pcp-qb-thumb {
+  width: 6px; min-height: 8px; border-radius: 3px;
+  background: rgba(160,165,180,0.85); transition: width .15s;
+}
+.pcp-quickbar.is-pressed .pcp-qb-thumb { width: 9px; }
 .pcp-quickbar[hidden] { display: none; }
 .pcp-qb-track {
   position: absolute;
