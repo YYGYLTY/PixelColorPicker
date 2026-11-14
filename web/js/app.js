@@ -466,12 +466,12 @@
   function updateDisplayBoxHeight() {
     var box = $('displayBox');
     if (!box) return;
-    var w = box.clientWidth;
+    var w = Math.floor(box.clientWidth);
     if (w <= 0) return;
     var ratio = VM.canvasHeight / VM.canvasWidth;
     var maxH = Math.min(400, window.innerHeight * 0.6);
-    var h = clamp(w * ratio, 40, maxH);
-    box.style.height = Math.round(h) + 'px';
+    var h = Math.round(clamp(w * ratio, 40, maxH));
+    box.style.height = h + 'px';
   }
 
   function drawPreview(fast) {
@@ -481,8 +481,8 @@
     cv.hidden = false;
     updateDisplayBoxHeight();
 
-    var boxW = box ? box.clientWidth : 0;
-    var boxH = box ? box.clientHeight : 0;
+    var boxW = box ? Math.floor(box.clientWidth) : 0;
+    var boxH = box ? Math.floor(box.clientHeight) : 0;
     if (boxW <= 0 || boxH <= 0) { requestAnimationFrame(function(){ drawPreview(fast); }); return; }
     var dpr = Math.min(window.devicePixelRatio || 1, 2);
 
@@ -523,17 +523,9 @@
       });
     } catch (e) { return; }
 
-    // ---------- contentRect：按图片比例 contain（同 fitRect） ----------
-    // 注意：App 的 contentRect 用 croppedBitmap 的宽高比
-    var imgAspect = VM.sourceW / VM.sourceH;
-    var cw2, ch2, cx0, cy0;
-    if (boxW / boxH > imgAspect) {
-      ch2 = boxH; cw2 = boxH * imgAspect;
-    } else {
-      cw2 = boxW; ch2 = boxW / imgAspect;
-    }
-    cx0 = (boxW - cw2) / 2;
-    cy0 = (boxH - ch2) / 2;
+    // ---------- contentRect ----------
+    // 已像素化：容器高度就是按画布比例算的，contentRect = 整个容器（严格无拉伸）
+    var cw2 = boxW, ch2 = boxH, cx0 = 0, cy0 = 0;
 
     cv.width = Math.round(boxW * dpr);
     cv.height = Math.round(boxH * dpr);
@@ -724,7 +716,8 @@
 
     var pad = cell * 0.05;
     var corner = cell * 0.16;
-    var showText = cell >= 52;
+    // [对齐 App] textThreshold = max(measureText("#FFFFFF"), measureText("(999,999)")) + 16
+    var showText = cell >= (hexSize * 4.0 + 4);
     var hexSize = Math.max(8, Math.round(cell * 0.17));
     var coordSize = Math.max(7, Math.round(cell * 0.15));
     ctx.textAlign = 'center';
@@ -769,7 +762,6 @@
     var view = $('palView');
     if (!view || !VM.pixelArt) return;
     var cell = VM.palCell, W = VM.artW, H = VM.artH;
-    var step = Math.max(1, Math.ceil(46 / cell));
     var ox = view.scrollLeft, oy = view.scrollTop;
 
     var rx = $('rulerX');
@@ -778,9 +770,8 @@
       var fx = Math.max(0, Math.floor(ox / cell) - 1);
       var lx = Math.min(W - 1, Math.floor((ox + view.clientWidth) / cell) + 1);
       for (var x = fx; x <= lx; x++) {
-        if (x % step) continue;
         var s = document.createElement('span');
-        s.textContent = x;
+        s.textContent = 'X' + (x + 1);
         s.style.left = (x * cell + cell / 2 - ox) + 'px';
         rx.appendChild(s);
       }
@@ -791,9 +782,8 @@
       var fy = Math.max(0, Math.floor(oy / cell) - 1);
       var ly = Math.min(H - 1, Math.floor((oy + view.clientHeight) / cell) + 1);
       for (var y = fy; y <= ly; y++) {
-        if (y % step) continue;
         var t = document.createElement('span');
-        t.textContent = y;
+        t.textContent = 'Y' + (y + 1);
         t.style.top = (y * cell + cell / 2 - oy) + 'px';
         ry.appendChild(t);
       }
@@ -807,38 +797,36 @@
     var cell = VM.palCell, W = VM.artW, H = VM.artH;
     var contentW = W * cell, contentH = H * cell;
 
+    // [对齐 App QuickBar] thumbFraction = (viewport/content).coerceIn(0.04, 1)
+    // thumbLen = max(track * tf, trackW)  →  长度只随视口比例变化，不随滚动变化
     var hb = $('palHBar'), ht = $('palHThumb');
     if (hb && ht) {
       var trackW = hb.clientWidth;
       var maxX = Math.max(0, contentW - view.clientWidth);
-      if (maxX <= 0) {
+      if (maxX <= 0 || trackW <= 0) {
         hb.style.visibility = 'hidden';
       } else {
         hb.style.visibility = 'visible';
-        var ratioW = Math.min(1, Math.max(0.05, view.clientWidth / contentW));
-        var tw = Math.max(28, Math.round(trackW * ratioW));
+        var tfW = Math.min(1, Math.max(0.04, view.clientWidth / contentW));
+        var tw = Math.max(4, trackW * tfW);
         ht.style.width = tw + 'px';
-        ht.style.height = '6px';
-        ht.style.top = '6px';
-        var fx = view.scrollLeft / maxX;
-        ht.style.left = Math.round(fx * (trackW - tw)) + 'px';
+        var fx = Math.min(1, Math.max(0, view.scrollLeft / maxX));
+        ht.style.left = (fx * (trackW - tw)) + 'px';
       }
     }
     var vb = $('palVBar'), vt = $('palVThumb');
     if (vb && vt) {
       var trackH = vb.clientHeight;
       var maxY = Math.max(0, contentH - view.clientHeight);
-      if (maxY <= 0) {
+      if (maxY <= 0 || trackH <= 0) {
         vb.style.visibility = 'hidden';
       } else {
         vb.style.visibility = 'visible';
-        var ratioH = Math.min(1, Math.max(0.05, view.clientHeight / contentH));
-        var th = Math.max(28, Math.round(trackH * ratioH));
+        var tfH = Math.min(1, Math.max(0.04, view.clientHeight / contentH));
+        var th = Math.max(4, trackH * tfH);
         vt.style.height = th + 'px';
-        vt.style.width = '6px';
-        vt.style.left = '7px';
-        var fy = view.scrollTop / maxY;
-        vt.style.top = Math.round(fy * (trackH - th)) + 'px';
+        var fy = Math.min(1, Math.max(0, view.scrollTop / maxY));
+        vt.style.top = (fy * (trackH - th)) + 'px';
       }
     }
   }
@@ -1428,7 +1416,8 @@
     var minScale = 0.05;
     var cr0 = VM.cropRect;
     if (VM.originalBitmap && cr0 && cr0.w > 0 && cr0.h > 0) {
-      minScale = Math.min(cr0.w / VM.originalW, cr0.h / VM.originalH);
+      // 窗口不能超出原图：两轴都需满足，取较大值
+      minScale = Math.max(cr0.w / VM.originalW, cr0.h / VM.originalH);
     }
     var ns = clamp(VM.scale * factor, minScale, 12);
     if (ns === VM.scale) return;
@@ -1969,11 +1958,13 @@
       if (total <= 4) { qb.hidden = true; return; }
       qb.hidden = false;
       var trackH = qb.clientHeight;
-      var visRatio = Math.min(1, Math.max(0.05, sc.clientHeight / Math.max(1, sc.scrollHeight)));
-      var thH = Math.max(28, Math.round(trackH * visRatio));
+      if (trackH <= 0) return;
+      // [对齐 App QuickBar] thumbFraction 只依赖视口/内容比例，不随滚动变化
+      var visRatio = Math.min(1, Math.max(0.04, sc.clientHeight / Math.max(1, sc.scrollHeight)));
+      var thH = Math.max(4, trackH * visRatio);
       th.style.height = thH + 'px';
-      var f = total > 0 ? sc.scrollTop / total : 0;
-      th.style.top = Math.round(f * (trackH - thH)) + 'px';
+      var f = Math.min(1, Math.max(0, total > 0 ? sc.scrollTop / total : 0));
+      th.style.top = (f * (trackH - thH)) + 'px';
     }
     VM._syncQuickBar = sync;
 
@@ -2137,331 +2128,6 @@
         ctx.beginPath(); ctx.moveTo(0, py2); ctx.lineTo(cw, py2); ctx.stroke();
       }
     }
-  }
-
-  function renderEditorPalette() {
-    var box = $('edPalette');
-    if (!box || !VM.editPixels) return;
-    box.innerHTML = '';
-
-    var seen = {};
-    for (var i = 0; i < VM.editPixels.length; i++) {
-      var c = VM.editPixels[i];
-      if (((c >>> 24) & 0xFF) === 0) continue;
-      seen[c >>> 0] = c;
-    }
-    var colors = Object.keys(seen).map(Number).sort(function (a, b) { return a - b; });
-
-    // 「+」添加颜色
-    var add = document.createElement('button');
-    add.className = 'pcp-pal-add';
-    add.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>';
-    add.onclick = function () {
-      var inp = document.createElement('input');
-      inp.type = 'color';
-      inp.value = '#' + ((VM.editColor >>> 0) & 0xFFFFFF).toString(16).padStart(6, '0');
-      inp.style.cssText = 'position:fixed;left:-9999px';
-      document.body.appendChild(inp);
-      inp.onchange = function () {
-        VM.editColor = Codec.parseHex(inp.value);
-        document.body.removeChild(inp);
-        renderEditorPalette();
-      };
-      inp.click();
-    };
-    box.appendChild(add);
-
-    colors.forEach(function (cv) {
-      var b = document.createElement('button');
-      var hex = '#' + ((cv >>> 0) & 0xFFFFFF).toString(16).padStart(6, '0');
-      b.className = 'pcp-pal-color' + (VM.editColor === cv ? ' is-active' : '');
-      b.style.background = hex;
-      b.title = hex;
-      b.onclick = function () {
-        VM.editColor = cv;
-        renderEditorPalette();
-      };
-      box.appendChild(b);
-    });
-  }
-
-  /** 选颜色（自定义）：App 是 ColorSheet，网页用原生取色器。 */
-  function pickEditorColor() {
-    var inp = document.createElement('input');
-    inp.type = 'color';
-    inp.value = '#' + ((VM.editColor >>> 0) & 0xFFFFFF).toString(16).padStart(6, '0');
-    inp.style.cssText = 'position:fixed;left:-9999px';
-    document.body.appendChild(inp);
-    inp.onchange = function () {
-      VM.editColor = Codec.parseHex(inp.value);
-      document.body.removeChild(inp);
-      renderEditorPalette();
-      renderEdInfo();
-    };
-    inp.click();
-  }
-
-  /** 颜色信息卡片（同 ColorInfoCard）：当前色块 + hex + 选中坐标。 */
-  function renderEdInfo() {
-    var sw = $('edSwatch'), hx = $('edHex'), co = $('edCoord');
-    if (!sw) return;
-    var cur = VM.editColor;
-    var hex = '#' + ((cur >>> 0) & 0xFFFFFF).toString(16).padStart(6, '0').toUpperCase();
-    sw.style.background = hex;
-    hx.textContent = hex;
-    var idx = VM.edSel;
-    if (idx != null && idx >= 0 && idx < VM.editPixels.length) {
-      var x = idx % VM.editW;
-      var y = (idx / VM.editW) | 0;
-      var c = VM.editPixels[idx];
-      var ch = '#' + ((c >>> 0) & 0xFFFFFF).toString(16).padStart(6, '0').toUpperCase();
-      var a = (c >>> 24) & 0xFF;
-      co.innerHTML =
-        '<span class="pcp-ed-coord-dot" style="background:' + ch + '"></span>' +
-        '<span class="pcp-ed-coord-txt">' + S('editor_coord') + ': (' + x + ', ' + y + ')<br>' +
-        ch + '  A=' + a + '</span>';
-      co.classList.add('is-on');
-    } else {
-      co.innerHTML = '';
-      co.classList.remove('is-on');
-    }
-  }
-
-  /** 添加图片到首页 / 保存图片（同 addEditorArtToHome / saveEditorArt）。 */
-  function editorToHome(withToast) {
-    if (!VM.editPixels) return;
-    VM.pixelArt = new Int32Array(VM.editPixels);
-    VM.artW = VM.editW;
-    VM.artH = VM.editH;
-    VM.isPixelated = true;
-    var sb = $('saveAlbumBtn');
-    if (sb) sb.disabled = false;
-    drawPreview();
-    renderPalette();
-    renderCodes();
-    toast(S(withToast ? 'editor_saved' : 'editor_added_to_home'));
-    if (!withToast) {
-      var sub = $('subEditor');
-      if (sub) sub.remove();
-      VM.subScreen = null;
-    }
-  }
-
-  /** 导出 PNG（App 用 PngExporter 写相册，网页用下载）。 */
-  function exportEditorPng() {
-    if (!VM.editPixels) return;
-    var W = VM.editW, H = VM.editH;
-    var c = document.createElement('canvas');
-    c.width = W; c.height = H;
-    var cx = c.getContext('2d');
-    var img = cx.createImageData(W, H);
-    for (var i = 0; i < W * H; i++) {
-      var p = VM.editPixels[i];
-      img.data[i * 4] = (p >>> 16) & 0xFF;
-      img.data[i * 4 + 1] = (p >>> 8) & 0xFF;
-      img.data[i * 4 + 2] = p & 0xFF;
-      img.data[i * 4 + 3] = (p >>> 24) & 0xFF;
-    }
-    cx.putImageData(img, 0, 0);
-    c.toBlob(function (blob) {
-      var a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = 'pixel_art_' + Date.now() + '.png';
-      a.click();
-      setTimeout(function () { URL.revokeObjectURL(a.href); }, 3000);
-      toast(S('editor_saved'));
-    }, 'image/png');
-  }
-
-  /** 全部填充为当前颜色（同 editorFillAll）。 */
-  function fillEditorAll() {
-    if (!VM.editPixels) return;
-    pushUndo();
-    VM.editPixels.fill(VM.editColor);
-    renderEditor();
-    renderEditorPalette();
-    renderEdInfo();
-  }
-
-  var edCtx = null, edPainting = false, edLastX = -1, edLastY = -1;
-
-  /** 编码页右侧快速定位滑块（同 QuickBar）。 */
-  function initQuickBar() {
-    var sc = $('codeScroll'), qb = $('codeQb'), th = $('codeQbThumb');
-    if (!sc || !qb || !th) return;
-
-    function sync() {
-      if (!VM.pixelArt) { qb.hidden = true; return; }
-      var total = sc.scrollHeight - sc.clientHeight;
-      if (total <= 4) { qb.hidden = true; return; }
-      qb.hidden = false;
-      var trackH = qb.clientHeight;
-      var visRatio = Math.min(1, Math.max(0.05, sc.clientHeight / Math.max(1, sc.scrollHeight)));
-      var thH = Math.max(28, Math.round(trackH * visRatio));
-      th.style.height = thH + 'px';
-      var f = total > 0 ? sc.scrollTop / total : 0;
-      th.style.top = Math.round(f * (trackH - thH)) + 'px';
-    }
-    VM._syncQuickBar = sync;
-
-    var dragging = false;
-    function seek(e) {
-      var r = qb.getBoundingClientRect();
-      var f = clamp((e.clientY - r.top) / r.height, 0, 1);
-      sc.scrollTop = f * (sc.scrollHeight - sc.clientHeight);
-      sync();
-    }
-    qb.addEventListener('pointerdown', function (e) {
-      dragging = true;
-      qb.classList.add('is-pressed');
-      try { qb.setPointerCapture(e.pointerId); } catch (err) {}
-      seek(e);
-      e.preventDefault();
-    });
-    qb.addEventListener('pointermove', function (e) {
-      if (!dragging) return;
-      e.preventDefault();
-      seek(e);
-    });
-    function up() { dragging = false; qb.classList.remove('is-pressed'); }
-    qb.addEventListener('pointerup', up);
-    qb.addEventListener('pointercancel', up);
-    sc.addEventListener('scroll', sync, { passive: true });
-    window.addEventListener('resize', sync);
-    sync();
-  }
-
-  function initEditorCanvas() {
-    var cv = $('editorCanvas');
-    if (!cv) return;
-
-    function cellFrom(e) {
-      var r = cv.getBoundingClientRect();
-      return {
-        x: clamp(Math.floor((e.clientX - r.left) / r.width * VM.editW), 0, VM.editW - 1),
-        y: clamp(Math.floor((e.clientY - r.top) / r.height * VM.editH), 0, VM.editH - 1)
-      };
-    }
-
-    function paint(e) {
-      var c = cellFrom(e);
-      if (c.x === edLastX && c.y === edLastY) return;
-      edLastX = c.x; edLastY = c.y;
-      VM.edSel = c.y * VM.editW + c.x;
-      if (VM.editTool === 'brush') VM.editPixels[c.y * VM.editW + c.x] = VM.editColor;
-      else if (VM.editTool === 'eraser') VM.editPixels[c.y * VM.editW + c.x] = 0;
-      renderEditor();
-      renderEdInfo();
-    }
-
-    cv.addEventListener('pointerdown', function (e) {
-      e.preventDefault();
-      var c = cellFrom(e);
-      VM.edSel = c.y * VM.editW + c.x;
-
-      if (VM.editTool === 'eyedropper') {
-        var col = VM.editPixels[c.y * VM.editW + c.x];
-        if ((col >>> 24) !== 0) {
-          VM.editColor = col;
-          var ci = document.querySelector('.pcp-color-input');
-          if (ci) ci.value = Codec.hexOf(col);
-          toast(Codec.hexOf(col));
-        }
-        renderEdInfo();
-        return;
-      }
-
-      pushUndo();
-
-      if (VM.editTool === 'fill') {
-        doFill(c.x, c.y, VM.editColor);
-        renderEditor();
-        renderEdInfo();
-        return;
-      }
-
-      edPainting = true;
-      edLastX = -1; edLastY = -1;
-      paint(e);
-      cv.setPointerCapture(e.pointerId);
-    });
-
-    cv.addEventListener('pointermove', function (e) {
-      if (!edPainting) return;
-      e.preventDefault();
-      paint(e);
-    });
-
-    function stop(e) {
-      edPainting = false;
-      edLastX = -1; edLastY = -1;
-      try { cv.releasePointerCapture(e.pointerId); } catch (x) {}
-    }
-    cv.addEventListener('pointerup', stop);
-    cv.addEventListener('pointercancel', stop);
-  }
-
-  function renderEditor() {
-    var cv = $('editorCanvas');
-    if (!cv || !VM.editPixels) return;
-    var W = VM.editW, H = VM.editH;
-
-    // 计算显示倍率（整数倍放大，保持像素锐利）
-    var wrapEl = document.querySelector('.pcp-editor-wrap');
-    var wrapH = wrapEl ? wrapEl.clientHeight - 24 : Math.min(window.innerHeight * 0.5, 460);
-    var maxH = Math.max(160, wrapH);
-    var maxW = window.innerWidth - 60;
-    var s = Math.min(maxW / W, maxH / H);
-    var mult = s >= 1 ? Math.max(1, Math.floor(s)) : s;
-    var cw = Math.max(1, Math.round(W * mult));
-    var ch = Math.max(1, Math.round(H * mult));
-
-    cv.width = cw;
-    cv.height = ch;
-    var ctx = cv.getContext('2d');
-    ctx.imageSmoothingEnabled = false;
-
-    // [修复] 先铺一层格子底纹，透明像素也能看见（否则浅色主题下整块白，完全看不见）
-    var cell = Math.max(4, Math.round(mult));
-    for (var cy = 0; cy < ch; cy += cell) {
-      for (var cx = 0; cx < cw; cx += cell) {
-        var odd = ((cx / cell) | 0) + ((cy / cell) | 0);
-        ctx.fillStyle = odd % 2 ? 'rgba(140,145,160,0.16)' : 'rgba(140,145,160,0.07)';
-        ctx.fillRect(cx, cy, cell, cell);
-      }
-    }
-
-    // 再按像素块填色（跳过全透明，保留底纹）
-    for (var y = 0; y < H; y++) {
-      for (var x = 0; x < W; x++) {
-        var c = VM.editPixels[y * W + x];
-        if (((c >>> 24) & 0xFF) === 0) continue;
-        ctx.fillStyle = '#' + ((c >>> 0) & 0xFFFFFF).toString(16).padStart(6, '0');
-        ctx.fillRect(Math.floor(x * mult), Math.floor(y * mult),
-          Math.ceil(mult), Math.ceil(mult));
-      }
-    }
-
-    // 网格线（格子够大时才画，否则一片糊）
-    if (mult >= 6) {
-      ctx.strokeStyle = 'rgba(128,132,150,0.28)';
-      ctx.lineWidth = 1;
-      for (var i = 1; i < W; i++) {
-        var px = Math.round(i * mult) + 0.5;
-        ctx.beginPath(); ctx.moveTo(px, 0); ctx.lineTo(px, ch); ctx.stroke();
-      }
-      for (var j = 1; j < H; j++) {
-        var py = Math.round(j * mult) + 0.5;
-        ctx.beginPath(); ctx.moveTo(0, py); ctx.lineTo(cw, py); ctx.stroke();
-      }
-    }
-
-    cv.style.width = cw + 'px';
-    cv.style.height = ch + 'px';
-
-    var meta = $('edMeta');
-    if (meta) meta.textContent = W + '×' + H;
-    renderEditorPalette();
   }
 
   function pushUndo() {
