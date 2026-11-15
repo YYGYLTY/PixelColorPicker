@@ -45,6 +45,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "My Application"
+rootProject.name = "PixelColorPicker"
 include(":app")
 include(":webApp")
