@@ -158,8 +158,15 @@ external fun mark(msg: String)
 @OptIn(ExperimentalComposeUiApi::class)
 fun main() {
     mark("wasm main() 开始")
-    // viewportContainerId 指向一个普通的 div（不是 canvas）。
-    // ComposeViewport 会在该容器内部自行创建 canvas 与输入用 textarea；
-    // 若把容器设成 <canvas>，内部追加的元素不可见，表现为整页黑屏。
-    ComposeViewport(viewportContainerId = "ComposeTarget") { App() }
+    try {
+        // viewportContainerId 指向一个普通的 div（不是 canvas）。
+        // ComposeViewport 会在该容器内部自行创建 canvas 与输入用 textarea。
+        ComposeViewport(viewportContainerId = "ComposeTarget") {
+            mark("content lambda 开始组合")
+            App()
+        }
+        mark("ComposeViewport 已调用并返回")
+    } catch (t: Throwable) {
+        mark("ComposeViewport 异常: " + (t.message ?: t.toString()))
+    }
 }
