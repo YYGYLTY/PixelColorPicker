@@ -31,6 +31,13 @@
     transition: opacity .35s ease; z-index: 10;
   }
   #boot.hide { opacity: 0; pointer-events: none; }
+  #bootlog {
+    max-width: 92vw; max-height: 52vh; overflow: auto;
+    font: 11px/1.5 ui-monospace, Menlo, Consolas, monospace;
+    color: #6D7288; text-align: left; white-space: pre-wrap;
+    word-break: break-all; padding: 0 12px;
+  }
+  #bootlog b { color: #7C5CFF; }
   #boot .ring {
     width: 34px; height: 34px;
     border: 3px solid #1E2130; border-top-color: #7C5CFF;
@@ -53,7 +60,11 @@
 </style>
 </head>
 <body>
-<div id="boot"><div class="ring"></div><div>正在加载…</div></div>
+<div id="boot">
+  <div class="ring"></div>
+  <div>正在加载…</div>
+  <div id="bootlog"></div>
+</div>
 <div id="ComposeTarget"></div>
 <div id="diag"></div>
 
@@ -69,11 +80,21 @@
     return t.toTimeString().slice(0, 8) + '.' + String(t.getMilliseconds()).padStart(3, '0');
   }
 
+  var bootlog = document.getElementById('bootlog');
+
   function push(kind, msg) {
-    logs.push('[' + stamp() + '] ' + kind + ' ' + msg);
+    var line = '[' + stamp() + '] ' + kind + ' ' + msg;
+    logs.push(line);
     if (logs.length > 200) logs.shift();
     if (shown) diag.textContent = logs.join('\n');
+    // 加载阶段实时回显到页面，方便直接截图定位卡点
+    if (bootlog && !shown) {
+      bootlog.textContent = logs.slice(-14).join('\n');
+    }
   }
+
+  // 暴露给 Kotlin 侧调用的探针
+  window.__pcpMark = function (msg) { push('KOTLIN', String(msg)); };
 
   // 显示诊断面板（用户可截图）
   window.__pcpShowDiag = function (reason) {

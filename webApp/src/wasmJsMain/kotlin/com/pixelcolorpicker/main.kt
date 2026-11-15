@@ -42,7 +42,11 @@ import com.pixelcolorpicker.util.LocaleHelper
 @Composable
 fun App() {
     // 启动时应用已保存语言
-    LaunchedEffect(Unit) { LocaleHelper.applySaved() }
+    LaunchedEffect(Unit) {
+        mark("App 已组合，开始 applySaved")
+        LocaleHelper.applySaved()
+        mark("LocaleHelper 完成")
+    }
 
     var tab by remember { mutableStateOf(Tab.Home) }
 
@@ -146,8 +150,14 @@ private fun InfoRow(label: String, value: String) {
     }
 }
 
+
+/** 把执行进度写回页面的加载层，方便定位卡点（仅调试用）。 */
+@JsFun("(m) => { if (window.__pcpMark) window.__pcpMark(m); }")
+external fun mark(msg: String)
+
 @OptIn(ExperimentalComposeUiApi::class)
 fun main() {
+    mark("wasm main() 开始")
     // viewportContainerId 指向一个普通的 div（不是 canvas）。
     // ComposeViewport 会在该容器内部自行创建 canvas 与输入用 textarea；
     // 若把容器设成 <canvas>，内部追加的元素不可见，表现为整页黑屏。
