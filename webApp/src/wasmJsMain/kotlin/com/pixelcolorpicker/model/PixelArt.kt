@@ -96,7 +96,7 @@ class PixelArt(
     fun replaceAll(newPixels: IntArray) {
         require(newPixels.size == width * height)
         pushUndo()
-        System.arraycopy(newPixels, 0, pixels, 0, width * height)
+        newPixels.copyInto(pixels, 0, 0, width * height)
         version++
     }
 
@@ -123,7 +123,7 @@ class PixelArt(
         if (undoStack.isEmpty()) return
         redoStack.addLast(pixels.copyOf())
         val prev = undoStack.removeLast()
-        System.arraycopy(prev, 0, pixels, 0, width * height)
+        prev.copyInto(pixels, 0, 0, width * height)
         version++
         updateFlags()
     }
@@ -132,7 +132,7 @@ class PixelArt(
         if (redoStack.isEmpty()) return
         undoStack.addLast(pixels.copyOf())
         val next = redoStack.removeLast()
-        System.arraycopy(next, 0, pixels, 0, width * height)
+        next.copyInto(pixels, 0, 0, width * height)
         version++
         updateFlags()
     }
