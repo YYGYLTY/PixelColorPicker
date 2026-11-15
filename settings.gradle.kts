@@ -16,6 +16,14 @@ pluginManagement {
         gradlePluginPortal()
         // Compose Multiplatform 插件
         maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
+        // Kotlin/Wasm 需要 Node.js 二进制；nodejs.org 不在 Maven Central，
+        // 必须单独配 Ivy 仓库，否则 :kotlinWasmNodeJsSetup 会 404
+        ivy("https://nodejs.org/dist") {
+            patternLayout { artifact("[artifact]v[revision]/[artifact]v[revision]-[classifier].[ext]") }
+            metadataSources { artifact() }
+            content { includeModule("org.nodejs", "node") }
+            content { includeModule("org.nodejs", "yarn") }
+        }
     }
 }
 
@@ -30,6 +38,12 @@ dependencyResolutionManagement {
         google()
         mavenCentral()
         maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
+        ivy("https://nodejs.org/dist") {
+            patternLayout { artifact("[artifact]v[revision]/[artifact]v[revision]-[classifier].[ext]") }
+            metadataSources { artifact() }
+            content { includeModule("org.nodejs", "node") }
+            content { includeModule("org.nodejs", "yarn") }
+        }
     }
 }
 
