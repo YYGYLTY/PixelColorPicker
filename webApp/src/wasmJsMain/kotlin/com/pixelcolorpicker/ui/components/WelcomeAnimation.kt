@@ -31,7 +31,6 @@ import com.pixelcolorpicker.res.str
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.pixelcolorpicker.R
 import com.pixelcolorpicker.ui.theme.PcpColors
 import com.pixelcolorpicker.ui.theme.PcpDecelerate
 import kotlinx.coroutines.delay
