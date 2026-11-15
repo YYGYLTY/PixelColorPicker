@@ -221,8 +221,13 @@
     var safeScale = Math.max(0.01, scale);
     var safeScaleX = Math.max(0.01, (o.scaleX == null ? safeScale : o.scaleX));
     var safeScaleY = Math.max(0.01, (o.scaleY == null ? safeScale : o.scaleY));
-    var fw = srcW / (safeScaleX * outW);
-    var fh = srcH / (safeScaleY * outH);
+    // [修复] 采样窗口的源像素尺寸。旋转必须在「窗口坐标」内做：
+    // App 的 cx = center + rotate((u-0.5)*srcW,(v-0.5)*srcH)/scale，
+    // 在单轴时为 center + rotate((u-0.5)*winW,(v-0.5)*winH)；分轴时必须显式用 winW/winH
+    var winW = srcW / safeScaleX;
+    var winH = srcH / safeScaleY;
+    var fw = winW / outW;
+    var fh = winH / outH;
 
     // 采样网格数：内置算法按覆盖自适应，自定义严格按用户密度
     var nx, ny;
@@ -244,16 +249,17 @@
       for (var i = 0; i < outW; i++) {
         var u = (i + 0.5) / outW;
 
-        var lx = (u - 0.5) * srcW;
-        var ly = (v - 0.5) * srcH;
+        // 窗口归一化坐标（已含 scale），旋转在此空间内做 → 不失真
+        var lx = (u - 0.5) * winW;
+        var ly = (v - 0.5) * winH;
 
         // 逆旋转
         var rx = lx * cosT - ly * sinT;
         var ry = lx * sinT + ly * cosT;
 
         // 逆缩放 + 中心/平移
-        var cx = srcCenterX + rx / safeScaleX;
-        var cy = srcCenterY + ry / safeScaleY;
+        var cx = srcCenterX + rx;
+        var cy = srcCenterY + ry;
 
         if (kernel === ALGO.NEAREST) {
           out[j * outW + i] = sampleNearest(src, srcW, srcH, cx, cy);
