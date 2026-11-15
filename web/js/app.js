@@ -996,16 +996,17 @@
     VM.palHi = { x: cx, y: cy };
     var view = $('palView');
     var cell = VM.palCell || 56;
-    if (view) {
-      var left = cx * cell + cell / 2 - view.clientWidth / 2;
-      var top = cy * cell + cell / 2 - view.clientHeight / 2;
-      try {
-        view.scrollTo({ left: Math.max(0, left), top: Math.max(0, top), behavior: 'smooth' });
-      } catch (err) {
-        view.scrollLeft = Math.max(0, left);
-        view.scrollTop = Math.max(0, top);
-      }
-    }
+    if (!view) return;
+    var left = Math.max(0, cx * cell + cell / 2 - view.clientWidth / 2);
+    var top = Math.max(0, cy * cell + cell / 2 - view.clientHeight / 2);
+    // 先立即定位（smooth 在部分安卓 WebView 上无效，会导致「点了没反应」）
+    view.scrollLeft = left;
+    view.scrollTop = top;
+    // 再尝试平滑（成功则覆盖，失败不影响已定位的位置）
+    try { view.scrollTo({ left: left, top: top, behavior: 'smooth' }); } catch (err) {}
+    // 跳转后给出可见反馈：底部坐标提示 + 该格高亮
+    var tip = $('paletteTip');
+    if (tip) tip.textContent = 'X ' + (cx + 1) + ' · Y ' + (cy + 1);
     drawPaletteView();
     renderPalRulers();
     syncPalBars();
@@ -1486,8 +1487,19 @@
       }
       return;
     }
-    var dOffX = -(dxPx / boxW) * (L.winW / L.baseW);
-    var dOffY = -(dyPx / boxH) * (L.winH / L.baseH);
+    // [修复] 旋转后拖拽方向：
+    // 屏幕上的拖拽量是「屏幕坐标」，而 offsetX/offsetY 是「源图坐标」。
+    // 图片被旋转 rot 度后，屏幕方向与源图方向差一个 -rot 的旋转。
+    // 不补偿就会出现「往上拖图片往下走」「往左拖图片往上走」。
+    var rot = (VM.rotation || 0) * Math.PI / 180;
+    var ddx = dxPx, ddy = dyPx;
+    if (rot !== 0) {
+      var cosR = Math.cos(-rot), sinR = Math.sin(-rot);
+      ddx = dxPx * cosR - dyPx * sinR;
+      ddy = dxPx * sinR + dyPx * cosR;
+    }
+    var dOffX = -(ddx / boxW) * (L.winW / L.baseW);
+    var dOffY = -(ddy / boxH) * (L.winH / L.baseH);
     VM.offsetX = clamp(VM.offsetX + dOffX, L.xMin, L.xMax);
     VM.offsetY = clamp(VM.offsetY + dOffY, L.yMin, L.yMax);
   }
@@ -2087,14 +2099,14 @@
       qb.hidden = false;
       var trackH = qb.clientHeight;
       if (trackH <= 0) return;
-      // [修复] thumb 长度只依赖视口/虚拟总高比例，恒定不跳变
-      var estTotal = virtTotal();
-      var visRatio = Math.min(1, Math.max(0.04, sc.clientHeight / Math.max(1, estTotal)));
+      // 统一口径：大小与位置都基于 virtTotal()，避免 scrollHeight 懒加载突变导致
+      // 滑块「忽大忽小」和「触底反弹」。
+      var estTotal = Math.max(1, virtTotal());
+      var maxScroll = Math.max(1, estTotal - sc.clientHeight);
+      var visRatio = Math.min(1, Math.max(0.04, sc.clientHeight / estTotal));
       var thH = Math.max(4, trackH * visRatio);
       th.style.height = thH + 'px';
-      // 位置：用「与 seek 相同的口径」算，保证拖到底时 thumb 也到底（不反弹）
-      var realTotal = Math.max(1, sc.scrollHeight - sc.clientHeight);
-      var f = Math.min(1, Math.max(0, sc.scrollTop / realTotal));
+      var f = Math.min(1, Math.max(0, sc.scrollTop / maxScroll));
       th.style.top = (f * (trackH - thH)) + 'px';
     }
     VM._syncQuickBar = sync;
@@ -2110,9 +2122,14 @@
     }
     function seek(e) {
       var r = qb.getBoundingClientRect();
-      var f = clamp((e.clientY - r.top) / r.height, 0, 1);
-      // 67 = 底部留白（与 CSS padding-bottom 对应），让滑到底时能真正到底
-      sc.scrollTop = f * (sc.scrollHeight - sc.clientHeight);
+      // 扣掉 thumb 自身高度，手指拖到轨道两端时滑块也能真正贴边
+      var trackH = qb.clientHeight;
+      var thH = th.offsetHeight || 0;
+      var usable = Math.max(1, r.height - thH);
+      var f = clamp((e.clientY - r.top - thH / 2) / usable, 0, 1);
+      // 与 sync 相同口径，避免「滑到底弹回去」
+      var estTotal = Math.max(1, virtTotal());
+      sc.scrollTop = f * Math.max(0, estTotal - sc.clientHeight);
       sync();
     }
     qb.addEventListener('pointerdown', function (e) {
@@ -2161,11 +2178,68 @@
       }
     }
 
+    /**
+     * 画一格并立即增量重绘（只重绘这一格的像素矩形）。
+     *
+     * 旧实现：每次 pointermove 都调 renderEditor() 全量重建 ImageData，
+     * W*H 个格子逐像素双循环。999×999 时单帧百万次循环 → 掉帧 → 断触。
+     * 现改为只重绘变化格子，单帧只画 mult² 个像素。
+     */
     function paintCell(x, y) {
       if (x < 0 || y < 0 || x >= VM.editW || y >= VM.editH) return;
       var idx = y * VM.editW + x;
       if (VM.editTool === 'brush') VM.editPixels[idx] = VM.editColor;
       else if (VM.editTool === 'eraser') VM.editPixels[idx] = 0;
+      else return;
+      repaintCell(x, y);
+    }
+
+    /** 只重绘单个格子（与 renderEditor 相同的取色/棋盘格逻辑）。 */
+    function repaintCell(x, y) {
+      var cv = $('editorCanvas');
+      if (!cv || !VM.editPixels) return;
+      var mult = VM._edMult, offX = VM._edOffX, offY = VM._edOffY;
+      if (mult == null) return;                 // 还没渲染过，跳过（首帧由 renderEditor 负责）
+      var W = VM.editW;
+      var c = VM.editPixels[y * W + x];
+      var a = (c >>> 24) & 0xFF;
+      var r = (c >>> 16) & 0xFF, g = (c >>> 8) & 0xFF, b = c & 0xFF;
+      var x0 = Math.floor(x * mult) + offX;
+      var x1 = Math.max(x0 + 1, Math.floor((x + 1) * mult) + offX);
+      var y0 = Math.floor(y * mult) + offY;
+      var y1 = Math.max(y0 + 1, Math.floor((y + 1) * mult) + offY);
+      var ctx = cv.getContext('2d');
+      var w = Math.max(1, x1 - x0), h = Math.max(1, y1 - y0);
+      // 越界裁剪
+      var sx = Math.max(0, -x0), sy = Math.max(0, -y0);
+      var dx = Math.max(0, x0), dy = Math.max(0, y0);
+      var dw = Math.min(w - sx, cv.width - dx), dh = Math.min(h - sy, cv.height - dy);
+      if (dw <= 0 || dh <= 0) return;
+      if (a === 0) {
+        // 棋盘格：逐像素写（格子小，成本极低）
+        var img = ctx.createImageData(dw, dh);
+        var d = img.data;
+        var m = Math.max(1, mult);
+        for (var py = 0; py < dh; py++) {
+          for (var px = 0; px < dw; px++) {
+            var gx = Math.floor((dx + px) / m);
+            var gy = Math.floor((dy + py) / m);
+            var v = ((gx + gy) & 1) ? 168 : 196;
+            var i = (py * dw + px) * 4;
+            d[i] = v; d[i + 1] = v; d[i + 2] = v; d[i + 3] = 255;
+          }
+        }
+        ctx.putImageData(img, dx, dy);
+      } else {
+        ctx.fillStyle = 'rgba(' + r + ',' + g + ',' + b + ',' + (a / 255) + ')';
+        ctx.fillRect(dx, dy, dw, dh);
+      }
+      // 该格的网格线（与 renderEditor 条件一致）
+      if (mult >= 6 && W <= 200 && VM.editH <= 200) {
+        ctx.strokeStyle = 'rgba(128,128,128,0.22)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(dx + 0.5, dy + 0.5, dw - 1, dh - 1);
+      }
     }
 
     function paint(e) {
@@ -2182,7 +2256,7 @@
         return;
       }
       edLastX = c.x; edLastY = c.y;
-      renderEditor();
+      // 不再全量 renderEditor（由 paintCell 增量重绘），只刷新信息栏
       renderEdInfo();
     }
 
@@ -2301,6 +2375,8 @@
       }
     }
     ctx.putImageData(img, 0, 0);
+    // [性能] 缓存布局参数，供 paintCell 增量重绘使用（避免每帧全量重建 ImageData）
+    VM._edMult = mult; VM._edOffX = offX; VM._edOffY = offY; VM._edCw = cw; VM._edCh = ch;
 
     // 网格线（格子够大时才画）
     if (mult >= 6 && W <= 200 && H <= 200) {

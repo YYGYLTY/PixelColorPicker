@@ -152,10 +152,11 @@
     var y0 = Math.floor(y);
     var fx = f(x - x0);
     var fy = f(y - y0);
-    var wx0 = cubicWeight(-1 - fx), wx1 = cubicWeight(-fx);
-    var wx2 = cubicWeight(1 - fx), wx3 = cubicWeight(2 - fx);
-    var wy0 = cubicWeight(-1 - fy), wy1 = cubicWeight(-fy);
-    var wy2 = cubicWeight(1 - fy), wy3 = cubicWeight(2 - fy);
+    // JVM 里 -1f - fx 是 Float 运算，先 fround 再传参，否则末位差 1
+    var wx0 = cubicWeight(f(-1 - fx)), wx1 = cubicWeight(f(-fx));
+    var wx2 = cubicWeight(f(1 - fx)), wx3 = cubicWeight(f(2 - fx));
+    var wy0 = cubicWeight(f(-1 - fy)), wy1 = cubicWeight(f(-fy));
+    var wy2 = cubicWeight(f(1 - fy)), wy3 = cubicWeight(f(2 - fy));
     var accA = 0, accR = 0, accG = 0, accB = 0, wSum = 0;
     for (var dy = 0; dy < 4; dy++) {
       var wy = dy === 0 ? wy0 : dy === 1 ? wy1 : dy === 2 ? wy2 : wy3;
@@ -179,10 +180,10 @@
     var y0 = Math.floor(y);
     var fx = f(x - x0);
     var fy = f(y - y0);
-    var wx0 = lanczosWeight(-1 - fx), wx1 = lanczosWeight(-fx);
-    var wx2 = lanczosWeight(1 - fx), wx3 = lanczosWeight(2 - fx);
-    var wy0 = lanczosWeight(-1 - fy), wy1 = lanczosWeight(-fy);
-    var wy2 = lanczosWeight(1 - fy), wy3 = lanczosWeight(2 - fy);
+    var wx0 = lanczosWeight(f(-1 - fx)), wx1 = lanczosWeight(f(-fx));
+    var wx2 = lanczosWeight(f(1 - fx)), wx3 = lanczosWeight(f(2 - fx));
+    var wy0 = lanczosWeight(f(-1 - fy)), wy1 = lanczosWeight(f(-fy));
+    var wy2 = lanczosWeight(f(1 - fy)), wy3 = lanczosWeight(f(2 - fy));
     var accA = 0, accR = 0, accG = 0, accB = 0, wSum = 0;
     for (var dy = 0; dy < 4; dy++) {
       var wy = dy === 0 ? wy0 : dy === 1 ? wy1 : dy === 2 ? wy2 : wy3;
@@ -331,8 +332,13 @@
         var rx = f(lx * cosT - ly * sinT);
         var ry = f(lx * sinT + ly * cosT);
         // 逆缩放 + 中心/平移
-        var cx = f(srcCenterX + f(rx / scaleX));
-        var cy = f(srcCenterY + f(ry / scaleY));
+        // [对齐 App] Kotlin 只有单一 scale：cx = center + rotate(...)/scale。
+        // 旧版用 scaleX/scaleY 分轴除，旋转时 X/Y 被独立缩放 → 图片拉伸变形。
+        // 统一用 safeScale，分轴只在未旋转时可退化使用。
+        var useSX = (rotationDeg === 0 && o.scaleX != null) ? scaleX : safeScale;
+        var useSY = (rotationDeg === 0 && o.scaleY != null) ? scaleY : safeScale;
+        var cx = f(srcCenterX + f(rx / useSX));
+        var cy = f(srcCenterY + f(ry / useSY));
 
         if (kernel === PixelAlgorithm.Nearest) {
           out[j * outW + i] = sampleNearest(src, srcW, srcH, cx, cy);
