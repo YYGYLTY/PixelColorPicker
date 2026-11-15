@@ -52,7 +52,7 @@ fun BottomNav(
         NavItem(Tab.Palette, "tab_palette") { tint, size ->
             Icon(AppIcons.Palette, contentDescription = null, tint = tint, modifier = Modifier.size(size))
         },
-        NavItem(Tab.Code, "tab_code") { tint, _ ->
+        NavItem(Tab.Code, "tab_code") { tint, size ->
             // 旧版「编码」图标（复刻）；20dp 视觉对齐其他 24dp 图标
             // wasm 版：没有 drawable 资源，用 AppIcons.Code（同一套自绘图标）
             Icon(AppIcons.Code, contentDescription = null, tint = tint, modifier = Modifier.size(size))
