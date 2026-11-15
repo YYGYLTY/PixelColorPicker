@@ -27,6 +27,8 @@ kotlin {
                 implementation("org.jetbrains.compose.ui:ui:1.12.2")
                 implementation("org.jetbrains.compose.components:components-resources:1.12.2")
                 implementation("org.jetbrains.compose.material:material-icons-extended:1.7.3")
+                // localStorage / fetch 等浏览器 API
+                implementation("org.jetbrains.kotlinx:kotlinx-browser:0.5.0")
             }
         }
     }
