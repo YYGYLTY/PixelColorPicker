@@ -14,10 +14,13 @@ pluginManagement {
         }
         mavenCentral()
         gradlePluginPortal()
+        // Compose Multiplatform 插件
+        maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
     }
 }
+
 dependencyResolutionManagement {
-    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
     repositories {
         maven("https://maven.aliyun.com/repository/google")
         maven("https://maven.aliyun.com/repository/central")
@@ -26,9 +29,10 @@ dependencyResolutionManagement {
         maven("https://jitpack.io")
         google()
         mavenCentral()
+        maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
     }
 }
 
 rootProject.name = "My Application"
 include(":app")
- 
+include(":webApp")
