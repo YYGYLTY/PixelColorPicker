@@ -316,9 +316,11 @@
         <!-- 主体：Y 标尺 + 网格视口 + 纵向滑块 -->
         <div class="pcp-pal-main">
           <div class="pcp-pal-ry" id="rulerY"></div>
-          <div class="pcp-pal-view" id="palView">
+          <div class="pcp-pal-viewwrap">
             <canvas id="paletteCanvas"></canvas>
-            <div class="pcp-pal-spacer" id="palSpacer"></div>
+            <div class="pcp-pal-view" id="palView">
+              <div class="pcp-pal-spacer" id="palSpacer"></div>
+            </div>
           </div>
           <div class="pcp-pal-vbar" id="palVBar"><div class="pcp-qb-track"></div><div class="pcp-qb-thumb" id="palVThumb"></div></div>
         </div>
