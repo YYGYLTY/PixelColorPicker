@@ -93,6 +93,23 @@
 
   var bootlog = document.getElementById('bootlog');
 
+  // 穿透 shadow DOM 查找 canvas（Compose 把 canvas 放在 shadowRoot 里，
+  // document.querySelectorAll 看不到，之前就是因为这个导致加载层永不隐藏）
+  function findCanvasDeep(root) {
+    if (!root) return null;
+    var direct = root.querySelector ? root.querySelector('canvas') : null;
+    if (direct) return direct;
+    var all = root.querySelectorAll ? root.querySelectorAll('*') : [];
+    for (var i = 0; i < all.length; i++) {
+      if (all[i].shadowRoot) {
+        var r = findCanvasDeep(all[i].shadowRoot);
+        if (r) return r;
+      }
+    }
+    return null;
+  }
+
+
   function push(kind, msg) {
     var line = '[' + stamp() + '] ' + kind + ' ' + msg;
     logs.push(line);
@@ -105,7 +122,20 @@
   }
 
   // 暴露给 Kotlin 侧调用的探针
-  window.__pcpMark = function (msg) { push('KOTLIN', String(msg)); };
+  window.__pcpMark = function (msg) {
+    push('KOTLIN', String(msg));
+    var m = String(msg);
+    // App 已组合 = Compose 已接管，给渲染器 600ms 出首帧后收起加载层
+    if (m.indexOf('App 已组合') >= 0) {
+      setTimeout(function () {
+        if (!window.__pcpReady) {
+          window.__pcpReady = true;
+          push('INFO', 'App 已组合，收尾隐藏加载层');
+          if (boot) { boot.classList.add('hide'); setTimeout(function(){ if(boot) boot.remove(); }, 400); }
+        }
+      }, 600);
+    }
+  };
 
   // 显示诊断面板（用户可截图）
   window.__pcpShowDiag = function (reason) {
@@ -290,7 +320,7 @@
   var tries = 0;
   var timer = setInterval(function () {
     var host = document.getElementById('ComposeTarget');
-    var c = host ? host.querySelector('canvas') : null;
+    var c = findCanvasDeep(host);
     tries++;
     var w = c ? c.width : 0;
     var h = c ? c.height : 0;
@@ -313,7 +343,15 @@
              ' (offset ' + host.offsetWidth + 'x' + host.offsetHeight + ')')
           : '缺失';
         // 全文档 canvas 枚举
-        var all = document.querySelectorAll('canvas');
+        var all = [];
+        (function collect(root) {
+          if (!root || !root.querySelectorAll) return;
+          var qs = root.querySelectorAll('*');
+          for (var z = 0; z < qs.length; z++) {
+            if (qs[z].tagName === 'CANVAS') all.push(qs[z]);
+            if (qs[z].shadowRoot) collect(qs[z].shadowRoot);
+          }
+        })(document);
         var cinfo = [];
         for (var k = 0; k < all.length; k++) {
           var cc = all[k];
