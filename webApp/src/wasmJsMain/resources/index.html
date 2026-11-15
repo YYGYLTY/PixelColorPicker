@@ -163,6 +163,41 @@
 
   push('INFO', 'HTML 已执行，开始等待 wasm');
 
+  // ==== 决定性命中探针：拦截 canvas 创建与 getContext ====
+  (function instrumentCanvas() {
+    // 1) 拦截 createElement('canvas')
+    var CE = document.createElement.bind(document);
+    document.createElement = function (tag) {
+      var el = CE.apply(null, arguments);
+      if (String(tag).toLowerCase() === 'canvas') {
+        push('CANVAS', 'createElement("canvas") 被调用，当前尺寸 ' + el.width + 'x' + el.height);
+      }
+      return el;
+    };
+
+    // 2) 拦截原型上的 getContext（更可靠）
+    try {
+      var P = HTMLCanvasElement.prototype;
+      var ogc = P.getContext;
+      P.getContext = function (type, attrs) {
+        var r = null, err = null;
+        try { r = ogc.call(this, type, attrs); } catch (e) { err = e; }
+        var dim = this.width + 'x' + this.height;
+        var a = attrs ? JSON.stringify(attrs) : '无';
+        push('CANVAS', 'getContext("' + type + '") -> ' +
+             (err ? ('抛异常: ' + err.message) : (r ? 'OK' : 'null')) +
+             ' | 画布 ' + dim + ' | attrs=' + a);
+        if (err) throw err;
+        return r;
+      };
+    } catch (e) {
+      push('CANVAS', '原型拦截失败: ' + e.message);
+    }
+
+    // 3) 捕获 Skiko 内部被 try/catch 吃掉的东西（无可避免，但至少看到 init 痕迹）
+    push('CANVAS', 'canvas/getContext 探针已就绪');
+  })();
+
   // ---- 网络监控：包装 fetch/XHR，旁路观察所有 wasm 下载进度 ----
   (function watchNetwork() {
     var barfill = document.getElementById('barfill');
@@ -300,11 +335,30 @@
           }
         }
         var shadow = host ? (host.shadowRoot ? 'Y' : 'N') : '-';
+        // 深度遍历（含 shadow root），彻底看清挂载点
+        var tree = [];
+        (function walk(el, d) {
+          if (!el || d > 4 || tree.length > 20) return;
+          var cs = el.children || [];
+          for (var n = 0; n < cs.length && tree.length <= 20; n++) {
+            var e2 = cs[n];
+            tree.push(new Array(d + 1).join('·') + e2.tagName +
+              (e2.id ? '#' + e2.id : '') +
+              ' ' + (e2.width !== undefined ? e2.width + 'x' + e2.height : '') +
+              '{css' + (e2.clientWidth||0) + 'x' + (e2.clientHeight||0) + '}');
+            if (e2.shadowRoot) {
+              tree.push(new Array(d + 1).join('·') + '[shadowRoot]');
+              walk(e2.shadowRoot, d + 1);
+            }
+            walk(e2, d + 1);
+          }
+        })(host, 0);
         push('WAIT', sec + 's | 容器=' + hostInfo +
              ' | 直接子节点(' + (host ? host.childNodes.length : -1) + ')=' +
              (kids.join(',') || '空') +
              ' | shadow=' + shadow +
-             ' | 全文档canvas=' + all.length);
+             ' | 全文档canvas=' + all.length +
+             ' | 树:' + (tree.join(' | ') || '空'));
         if (tries === 50) {
           push('GL', 'WebGL2=' + testGL('webgl2'));
           push('GL', 'WebGL1=' + testGL('webgl'));
