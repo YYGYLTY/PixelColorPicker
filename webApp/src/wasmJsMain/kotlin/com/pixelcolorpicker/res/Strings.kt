@@ -213,8 +213,9 @@ object Strings {
     private fun format(raw: String, args: Array<out Any?>): String {
         var out = raw
         args.forEachIndexed { i, a ->
-            out = out.replace("%" + (i + 1) + "$s", a.toString())
-            out = out.replace("%" + (i + 1) + "$d", a.toString())
+            val idx = (i + 1).toString()
+            out = out.replace("%" + idx + "\$s", a.toString())
+            out = out.replace("%" + idx + "\$d", a.toString())
             out = out.replace("%s", a.toString())
             out = out.replace("%d", a.toString())
         }
