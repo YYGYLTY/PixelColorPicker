@@ -6,7 +6,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.CanvasBasedWindow
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.window.ComposeViewport
 import com.pixelcolorpicker.ui.icons.AppIcons
 
 @Composable
@@ -25,6 +26,7 @@ fun App() {
     }
 }
 
+@OptIn(ExperimentalComposeUiApi::class)
 fun main() {
-    CanvasBasedWindow(canvasElementId = "ComposeTarget") { App() }
+    ComposeViewport(viewportContainerId = "ComposeTarget") { App() }
 }
