@@ -219,8 +219,10 @@
 
     // [对齐 App] 与 Pixelator.kt 一致：整张源图铺满输出框（拉伸），不做 cover 裁剪
     var safeScale = Math.max(0.01, scale);
-    var fw = srcW / (safeScale * outW);
-    var fh = srcH / (safeScale * outH);
+    var safeScaleX = Math.max(0.01, (o.scaleX == null ? safeScale : o.scaleX));
+    var safeScaleY = Math.max(0.01, (o.scaleY == null ? safeScale : o.scaleY));
+    var fw = srcW / (safeScaleX * outW);
+    var fh = srcH / (safeScaleY * outH);
 
     // 采样网格数：内置算法按覆盖自适应，自定义严格按用户密度
     var nx, ny;
@@ -250,8 +252,8 @@
         var ry = lx * sinT + ly * cosT;
 
         // 逆缩放 + 中心/平移
-        var cx = srcCenterX + rx / safeScale;
-        var cy = srcCenterY + ry / safeScale;
+        var cx = srcCenterX + rx / safeScaleX;
+        var cy = srcCenterY + ry / safeScaleY;
 
         if (kernel === ALGO.NEAREST) {
           out[j * outW + i] = sampleNearest(src, srcW, srcH, cx, cy);
