@@ -33,7 +33,7 @@ object PcpColors {
      * 当前是否浅色主题。由 [PixelColorPickerTheme] 在每次组合时更新，
      * 使 [PcpColors] 的色值能随主题切换（无需改动全项目引用点）。
      */
-    @Volatile
+    @kotlin.concurrent.Volatile
     var isLight: Boolean = false
 
     private fun pick(dark: Color, light: Color): Color = if (isLight) light else dark
