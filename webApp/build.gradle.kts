@@ -1,9 +1,12 @@
+import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
+
 plugins {
     kotlin("multiplatform")
     id("org.jetbrains.compose")
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+@OptIn(ExperimentalWasmDsl::class)
 kotlin {
     wasmJs {
         browser {
@@ -13,17 +16,19 @@ kotlin {
         }
         binaries.executable()
     }
-}
 
-compose {
-    // 1.12.x 的 material3 用插件别名（版本号与主版本不同步）
-    dependencies {
-        implementation(compose.runtime)
-        implementation(compose.foundation)
-        implementation(compose.material3)
-        implementation(compose.materialIconsExtended)
-        implementation(compose.ui)
-        implementation(compose.components.resources)
+    // CMP 1.12.x：依赖写在 sourceSets，不再用 compose.dependencies {}
+    sourceSets {
+        val wasmJsMain by getting {
+            dependencies {
+                implementation("org.jetbrains.compose.runtime:runtime:1.12.2")
+                implementation("org.jetbrains.compose.foundation:foundation:1.12.2")
+                implementation("org.jetbrains.compose.material3:material3:1.12.2")
+                implementation("org.jetbrains.compose.ui:ui:1.12.2")
+                implementation("org.jetbrains.compose.components:components-resources:1.12.2")
+                implementation("org.jetbrains.compose.material:material-icons-extended:1.7.3")
+            }
+        }
     }
 }
 
