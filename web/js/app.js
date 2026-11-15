@@ -381,6 +381,14 @@
   }
 
   // ==================== 画布尺寸 ====================
+  /** [对齐 App] saveCanvasSize：记住画布尺寸，下次进入恢复。 */
+  function saveCanvasSize() {
+    try {
+      localStorage.setItem('pcp.canvasW', String(VM.canvasWidth));
+      localStorage.setItem('pcp.canvasH', String(VM.canvasHeight));
+    } catch (e) {}
+  }
+
   function setCanvasSize(w, h) {
     w = clamp(w | 0, 1, 999);
     h = clamp(h | 0, 1, 999);
@@ -389,18 +397,25 @@
     // 正方形才能旋转（对应 rotate_square_only）
     VM.canvasWidth = w;
     VM.canvasHeight = h;
+    saveCanvasSize();
     recordSizeHistory(); // [对齐 App] 记录使用历史
     updateSizeUI();
     renderPresets();
-    // [对齐 App] setCanvasSize：已生成时，比例不同需要重新框选
-    if (VM.isPixelated) {
+    // [对齐 App] setCanvasSize
+    if (VM.isPixelated && VM.sourceBitmap) {
       if (Math.abs(oldRatio - newRatio) > 1e-6) {
+        // 比例不同：回到原图，提示重新框选
         VM.isPixelated = false;
         VM.pixelArt = null;
+        VM.artW = 0; VM.artH = 0;
         $('saveAlbumBtn').disabled = true;
         renderPalette();
         renderCodes();
         toast(S('crop_hint'));
+      } else {
+        // [修复] 同比例：立即按新尺寸重新采样，色板/编码/编辑器同步更新
+        generate();
+        return;
       }
     }
     drawPreview();
@@ -518,7 +533,7 @@
         algorithm: VM.algorithm,
         customKernel: VM.customKernel,
         customSamples: VM.customSamples,
-        scale: ES.scale, offsetX: ES.ox, offsetY: ES.oy,
+        scale: ES.scale, scaleX: ES.scaleX, scaleY: ES.scaleY, offsetX: ES.ox, offsetY: ES.oy,
         rotationDeg: VM.rotation
       });
     } catch (e) { return; }
@@ -540,11 +555,27 @@
     // 先画棋盘格底纹（同 drawCheckerFill）
     drawCheckerRect(ctx, cx0, cy0, cw2, ch2, VM.canvasWidth, VM.canvasHeight);
 
-    // 再把像素画拉伸铺满 contentRect（paintNearest）
-    var tmp = document.createElement('canvas');
-    tmp.width = pw; tmp.height = ph;
-    tmp.getContext('2d').putImageData(toImageData(out, pw, ph), 0, 0);
-    ctx.drawImage(tmp, cx0, cy0, cw2, ch2);
+    // 画像素画
+    if (VM.gridEnabled && VM.canvasWidth <= 160 && VM.canvasHeight <= 160 && pw === VM.canvasWidth && ph === VM.canvasHeight) {
+      // [修复] 启用网格时逐格用整数边界绘制，保证网格线与色块完全对齐
+      for (var py2 = 0; py2 < ph; py2++) {
+        var y0i = cy0 + Math.round(py2 * ch2 / ph);
+        var y1i = cy0 + Math.round((py2 + 1) * ch2 / ph);
+        for (var px2 = 0; px2 < pw; px2++) {
+          var x0i = cx0 + Math.round(px2 * cw2 / pw);
+          var x1i = cx0 + Math.round((px2 + 1) * cw2 / pw);
+          var cc = out[py2 * pw + px2];
+          if (((cc >>> 24) & 0xFF) === 0) continue;
+          ctx.fillStyle = '#' + ((cc >>> 0) & 0xFFFFFF).toString(16).padStart(6, '0');
+          ctx.fillRect(x0i, y0i, x1i - x0i, y1i - y0i);
+        }
+      }
+    } else {
+      var tmp = document.createElement('canvas');
+      tmp.width = pw; tmp.height = ph;
+      tmp.getContext('2d').putImageData(toImageData(out, pw, ph), 0, 0);
+      ctx.drawImage(tmp, cx0, cy0, cw2, ch2);
+    }
 
     // 网格覆盖（同 ImageDisplayBox 的网格逻辑）
     if (VM.gridEnabled && VM.canvasWidth <= 160 && VM.canvasHeight <= 160) {
@@ -604,7 +635,7 @@
         algorithm: VM.algorithm,
         customKernel: VM.customKernel,
         customSamples: VM.customSamples,
-        scale: ES.scale, offsetX: ES.ox, offsetY: ES.oy,
+        scale: ES.scale, scaleX: ES.scaleX, scaleY: ES.scaleY, offsetX: ES.ox, offsetY: ES.oy,
         rotationDeg: VM.rotation
       });
     } catch (e) { toast('生成失败：' + e.message); return; }
@@ -687,6 +718,12 @@
       drawPaletteView();
       renderPalRulers();
       syncPalBars();
+      // 布局稳定后再画一次（切 tab 时首次 clientWidth 可能为 0）
+      setTimeout(function () {
+        drawPaletteView();
+        renderPalRulers();
+        syncPalBars();
+      }, 60);
     });
   }
 
@@ -696,6 +733,10 @@
     var cell = VM.palCell, W = VM.artW, H = VM.artH;
     var dpr = Math.min(window.devicePixelRatio || 1, 2);
     var vw = view.clientWidth, vh = view.clientHeight;
+    if (vw <= 0 || vh <= 0) {
+      var wr = document.querySelector('.pcp-pal-viewwrap');
+      if (wr) { vw = wr.clientWidth; vh = wr.clientHeight; }
+    }
     if (vw <= 0 || vh <= 0) return;
     if (cv.width !== Math.round(vw * dpr) || cv.height !== Math.round(vh * dpr)) {
       cv.width = Math.round(vw * dpr);
@@ -717,9 +758,10 @@
     var pad = cell * 0.05;
     var corner = cell * 0.16;
     // [对齐 App] textThreshold = max(measureText("#FFFFFF"), measureText("(999,999)")) + 16
-    var showText = cell >= (hexSize * 4.0 + 4);
+    // 注意：hexSize/coordSize 必须先定义（原来写在 showText 之后 → 值为 undefined → 永远不显示）
     var hexSize = Math.max(8, Math.round(cell * 0.17));
     var coordSize = Math.max(7, Math.round(cell * 0.15));
+    var showText = cell >= (hexSize * 4.0 + 4);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
@@ -1203,7 +1245,7 @@
       algorithm: 'custom',
       customKernel: VM.customKernel,
       customSamples: VM.customSamples,
-      scale: ES.scale, offsetX: ES.ox, offsetY: ES.oy,
+      scale: ES.scale, scaleX: ES.scaleX, scaleY: ES.scaleY, offsetX: ES.ox, offsetY: ES.oy,
       rotationDeg: VM.rotation
     });
     ctx.putImageData(toImageData(out, size, size), 0, 0);
@@ -1335,13 +1377,17 @@
       var cx = cr.x + cr.w / 2 + VM.offsetX * cr.w;
       var cy = cr.y + cr.h / 2 + VM.offsetY * cr.h;
       var halfW = winW / 2, halfH = winH / 2;
+      // [修复] 窗口不得超出原图（两轴都要夹紧）
       cx = clamp(cx, halfW, Math.max(halfW, VM.originalW - halfW));
       cy = clamp(cy, halfH, Math.max(halfH, VM.originalH - halfH));
       return {
         px: VM.originalBitmap,
         w: VM.originalW,
         h: VM.originalH,
+        // [修复] 分轴缩放：X/Y 窗口宽高不同，用同一 scale 会拉伸变形
         scale: VM.originalW / winW,
+        scaleX: VM.originalW / winW,
+        scaleY: VM.originalH / winH,
         ox: (cx - VM.originalW / 2) / VM.originalW,
         oy: (cy - VM.originalH / 2) / VM.originalH,
       };
@@ -1362,11 +1408,12 @@
       var winH = cr.h / VM.scale;
       var cx0 = cr.x + cr.w / 2;
       var cy0 = cr.y + cr.h / 2;
-      // 窗口不能超出原图：可移动范围 = 原图边界
-      var minCx = Math.min(cx0, winW / 2);
-      var maxCx = Math.max(cx0, VM.originalW - winW / 2);
-      var minCy = Math.min(cy0, winH / 2);
-      var maxCy = Math.max(cy0, VM.originalH - winH / 2);
+      // [修复] 窗口必须完整落在原图内：中心只能在 [win/2, orig-win/2]
+      // 若窗口比原图还大（缩得太小），范围退化为居中不动
+      var minCx = winW / 2;
+      var maxCx = Math.max(minCx, VM.originalW - winW / 2);
+      var minCy = winH / 2;
+      var maxCy = Math.max(minCy, VM.originalH - winH / 2);
       return {
         winW: winW, winH: winH, baseW: cr.w, baseH: cr.h,
         xMin: (minCx - cx0) / cr.w, xMax: (maxCx - cx0) / cr.w,
@@ -1405,6 +1452,14 @@
     }
     var dOffX = -(dxPx / boxW) * (L.winW / L.baseW);
     var dOffY = -(dyPx / boxH) * (L.winH / L.baseH);
+    // [修复] 采样是逆旋转的，拖拽方向也要跟着转（旋转 90° 后水平拖应改垂直）
+    var rot = (VM.rotation || 0) * Math.PI / 180;
+    if (rot !== 0) {
+      var cosR = Math.cos(rot), sinR = Math.sin(rot);
+      var rx2 = dOffX * cosR - dOffY * sinR;
+      var ry2 = dOffX * sinR + dOffY * cosR;
+      dOffX = rx2; dOffY = ry2;
+    }
     VM.offsetX = clamp(VM.offsetX + dOffX, L.xMin, L.xMax);
     VM.offsetY = clamp(VM.offsetY + dOffY, L.yMin, L.yMax);
   }
@@ -1703,6 +1758,9 @@
     }
     VM.undo = [];
     VM.redo = [];
+    VM.edScale = 1;
+    VM.edOffX = 0;
+    VM.edOffY = 0;
 
     var sub = document.createElement('div');
     sub.className = 'pcp-subpage';
@@ -1714,6 +1772,7 @@
       '<span class="pcp-editor-meta" id="edMeta"></span>' +
       '</div>' +
       '<div class="pcp-editor-wrap"><canvas id="editorCanvas"></canvas></div>' +
+      '<div class="pcp-ed-nav" id="edNav" hidden></div>' +
       '<div class="pcp-ed-body">' +
       '<div class="pcp-ed-tools" id="edTools"></div>' +
       '<div class="pcp-ed-palette" id="edPalette"></div>' +
@@ -1760,6 +1819,45 @@
       '<button class="pcp-ed-custom" id="edCustom">' + S('editor_custom_color') + '</button>' +
       '</div>' +
       '<div class="pcp-ed-coord" id="edCoord"></div>';
+    // ---------- 极端比例导航（同 EditorScreen 的 3 个 Slider） ----------
+    var edNav = $('edNav');
+    if (edNav) {
+      edNav.innerHTML =
+        '<div class="pcp-ed-slider-row">' +
+        '<span class="lb">' + S('editor_canvas_zoom') + '</span>' +
+        '<input class="pcp-ed-range" id="edScaleRange" type="range" min="1" max="16" step="0.1" value="1">' +
+        '<span class="val" id="edScaleVal">100%</span>' +
+        '</div>' +
+        '<div class="pcp-ed-slider-row">' +
+        '<span class="lb">' + S('editor_pan_x') + '</span>' +
+        '<input class="pcp-ed-range" id="edOffXRange" type="range" min="0" max="1" step="0.001" value="0">' +
+        '<span class="val" id="edOffXVal">1/' + VM.editW + '</span>' +
+        '</div>' +
+        '<div class="pcp-ed-slider-row">' +
+        '<span class="lb">' + S('editor_pan_y') + '</span>' +
+        '<input class="pcp-ed-range" id="edOffYRange" type="range" min="0" max="1" step="0.001" value="0">' +
+        '<span class="val" id="edOffYVal">1/' + VM.editH + '</span>' +
+        '</div>';
+      var sr = $('edScaleRange');
+      if (sr) sr.oninput = function () {
+        VM.edScale = parseFloat(this.value) || 1;
+        $('edScaleVal').textContent = Math.round(VM.edScale * 100) + '%';
+        renderEditor();
+      };
+      var xr = $('edOffXRange');
+      if (xr) xr.oninput = function () {
+        VM.edOffX = parseFloat(this.value) || 0;
+        $('edOffXVal').textContent = (Math.round(VM.edOffX * (VM.editW - 1)) + 1) + '/' + VM.editW;
+        renderEditor();
+      };
+      var yr = $('edOffYRange');
+      if (yr) yr.oninput = function () {
+        VM.edOffY = parseFloat(this.value) || 0;
+        $('edOffYVal').textContent = (Math.round(VM.edOffY * (VM.editH - 1)) + 1) + '/' + VM.editH;
+        renderEditor();
+      };
+    }
+
     $('edSwatch').onclick = function () { pickEditorColor(); };
     $('edCustom').onclick = function () { pickEditorColor(); };
 
@@ -1959,8 +2057,16 @@
       qb.hidden = false;
       var trackH = qb.clientHeight;
       if (trackH <= 0) return;
-      // [对齐 App QuickBar] thumbFraction 只依赖视口/内容比例，不随滚动变化
-      var visRatio = Math.min(1, Math.max(0.04, sc.clientHeight / Math.max(1, sc.scrollHeight)));
+      // [修复] 懒加载会让 scrollHeight 变（每 +20 列就变大）→ thumb 长度跳动
+      // 改用「总列数 × 单列高度」估算完整内容高度，保证 thumb 长度恒定
+      var list = $('codeList');
+      var itemH = 0;
+      if (list && list.children.length > 0) {
+        itemH = list.children[0].offsetHeight + 8; // +8 = 卡片间距
+      }
+      var estTotal = itemH > 0 ? (itemH * VM.artW + 140) : sc.scrollHeight;
+      var total2 = Math.max(estTotal - sc.clientHeight, 1);
+      var visRatio = Math.min(1, Math.max(0.04, sc.clientHeight / Math.max(1, estTotal)));
       var thH = Math.max(4, trackH * visRatio);
       th.style.height = thH + 'px';
       var f = Math.min(1, Math.max(0, total > 0 ? sc.scrollTop / total : 0));
@@ -2074,10 +2180,29 @@
     var wrapH = wrapEl ? wrapEl.clientHeight - 24 : Math.min(window.innerHeight * 0.5, 460);
     var maxH = Math.max(160, wrapH);
     var maxW = window.innerWidth - 60;
-    var s = Math.min(maxW / W, maxH / H);
-    var mult = s >= 1 ? Math.max(1, Math.floor(s)) : s;
-    var cw = Math.max(1, Math.round(W * mult));
-    var ch = Math.max(1, Math.round(H * mult));
+
+    // [对齐 App] 极端比例（长边/短边 > 6）：画布固定高度，靠滑块缩放/平移
+    var extreme = W > 0 && H > 0 && (W / H > 6 || H / W > 6);
+    var nav = $('edNav');
+    if (nav) nav.hidden = !extreme;
+
+    var s, mult, cw, ch, offX = 0, offY = 0;
+    if (extreme) {
+      // 极端比例：先按“较短边铺满”算出基础 mult，再乘用户缩放
+      var base = Math.min(maxW / W, maxH / H);
+      var baseMult = base >= 1 ? Math.floor(base) : base;
+      mult = baseMult * (VM.edScale || 1);
+      cw = Math.max(1, Math.round(W * mult));
+      ch = Math.max(1, Math.round(H * mult));
+      // 平移（按比例 0~1 映射到可滚动范围）
+      offX = -Math.max(0, cw - maxW) * (VM.edOffX || 0);
+      offY = -Math.max(0, ch - maxH) * (VM.edOffY || 0);
+    } else {
+      s = Math.min(maxW / W, maxH / H);
+      mult = s >= 1 ? Math.max(1, Math.floor(s)) : s;
+      cw = Math.max(1, Math.round(W * mult));
+      ch = Math.max(1, Math.round(H * mult));
+    }
 
     cv.width = cw;
     cv.height = ch;
@@ -2088,14 +2213,14 @@
     var img = ctx.createImageData(cw, ch);
     var d = img.data;
     for (var y = 0; y < H; y++) {
-      var y0 = Math.floor(y * mult);
-      var y1 = Math.max(y0 + 1, Math.floor((y + 1) * mult));
+      var y0 = Math.floor(y * mult) + offY;
+      var y1 = Math.max(y0 + 1, Math.floor((y + 1) * mult) + offY);
       for (var x = 0; x < W; x++) {
         var c = VM.editPixels[y * W + x];
         var a = (c >>> 24) & 0xFF;
         var r = (c >>> 16) & 0xFF, g = (c >>> 8) & 0xFF, b = c & 0xFF;
-        var x0 = Math.floor(x * mult);
-        var x1 = Math.max(x0 + 1, Math.floor((x + 1) * mult));
+        var x0 = Math.floor(x * mult) + offX;
+        var x1 = Math.max(x0 + 1, Math.floor((x + 1) * mult) + offX);
         for (var py = y0; py < y1; py++) {
           var base = py * cw * 4;
           for (var px = x0; px < x1; px++) {
@@ -2511,6 +2636,12 @@
       if (ep) {
         VM.customPalette = ep.split(',').map(function (x) { return parseInt(x, 10); })
           .filter(function (x) { return !isNaN(x); });
+      }
+      var cw0 = parseInt(localStorage.getItem('pcp.canvasW') || '', 10);
+      var ch0 = parseInt(localStorage.getItem('pcp.canvasH') || '', 10);
+      if (!isNaN(cw0) && !isNaN(ch0) && cw0 >= 1 && ch0 >= 1) {
+        VM.canvasWidth = clamp(cw0, 1, 999);
+        VM.canvasHeight = clamp(ch0, 1, 999);
       }
       VM.customPreset0 = localStorage.getItem('pcp.preset_0') || '';
       VM.customPreset1 = localStorage.getItem('pcp.preset_1') || '';
