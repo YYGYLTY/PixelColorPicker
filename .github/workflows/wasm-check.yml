@@ -6,6 +6,7 @@ on:
     paths:
       - 'webApp/**'
       - 'gradle/**'
+      - 'gradle.properties'
       - '*.gradle.kts'
       - '.github/workflows/wasm-check.yml'
   workflow_dispatch:
