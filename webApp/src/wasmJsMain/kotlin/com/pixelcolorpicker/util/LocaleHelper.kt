@@ -2,7 +2,9 @@ package com.pixelcolorpicker.util
 
 import com.pixelcolorpicker.res.Strings
 import kotlinx.browser.localStorage
+import org.w3c.dom.Storage
 import org.w3c.dom.get
+import org.w3c.dom.set
 
 /**
  * 语言切换工具（wasm 版）。
@@ -16,9 +18,16 @@ object LocaleHelper {
     /** 支持的语言代码（与 Android 版一致）。 */
     val SUPPORTED = listOf("zh", "en", "ja")
 
+    /** 安全取 localStorage（浏览器可能禁用）。 */
+    private fun store(): Storage? = try {
+        localStorage
+    } catch (t: Throwable) {
+        null
+    }
+
     /** 读取已保存语言；无则返回 null。 */
     fun getSavedLanguage(): String? {
-        val lang = localStorage[LS_KEY]
+        val lang = store()?.get(LS_KEY)
         return if (lang != null && lang in SUPPORTED) lang else null
     }
 
@@ -26,9 +35,9 @@ object LocaleHelper {
     fun setLanguage(lang: String) {
         if (lang !in SUPPORTED) return
         try {
-            localStorage[LS_KEY] = lang
+            store()?.set(LS_KEY, lang)
         } catch (t: Throwable) {
-            // 浏览器可能禁用 localStorage，忽略
+            // 忽略
         }
         Strings.current = when (lang) {
             "en" -> Strings.Lang.EN
