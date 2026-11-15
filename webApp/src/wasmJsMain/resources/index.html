@@ -9,59 +9,155 @@
     margin: 0; padding: 0; height: 100%;
     background: #08090F; overflow: hidden;
     -webkit-text-size-adjust: 100%;
+    font-family: -apple-system, "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
   }
-  #ComposeTarget { width: 100%; height: 100%; display: block; }
-  /* 首屏加载提示：wasm 体积较大，避免白屏 */
+  /* ComposeViewport 的 viewportContainer 需要普通 HTMLElement，
+     它会在内部自己创建 canvas + 输入用 textarea。
+     传 <canvas> 会导致内部 append 的元素不可见 -> 黑屏。 */
+  #ComposeTarget {
+    width: 100%; height: 100%; display: block;
+    position: absolute; top: 0; left: 0;
+    overflow: hidden;
+  }
+  #ComposeTarget > canvas {
+    display: block; width: 100%; height: 100%;
+  }
   #boot {
     position: fixed; inset: 0;
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
     gap: 18px;
-    background: #08090F;
-    color: #9AA0B4;
-    font: 14px/1.5 -apple-system, "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
-    transition: opacity .35s ease;
-    z-index: 10;
+    background: #08090F; color: #9AA0B4; font-size: 14px;
+    transition: opacity .35s ease; z-index: 10;
   }
   #boot.hide { opacity: 0; pointer-events: none; }
   #boot .ring {
     width: 34px; height: 34px;
-    border: 3px solid #1E2130;
-    border-top-color: #7C5CFF;
-    border-radius: 50%;
-    animation: spin .8s linear infinite;
+    border: 3px solid #1E2130; border-top-color: #7C5CFF;
+    border-radius: 50%; animation: spin .8s linear infinite;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
+  /* 错误面板：出问题时直接显示在页面最上层 */
+  #diag {
+    position: fixed; inset: 0; z-index: 99999;
+    display: none; padding: 14px;
+    background: #12090C; color: #FFB4B4;
+    font: 12px/1.55 ui-monospace, Menlo, Consolas, monospace;
+    overflow: auto; white-space: pre-wrap; word-break: break-all;
+    -webkit-user-select: text; user-select: text;
+  }
+  #diag.on { display: block; }
+  #diag b { color: #FF7A7A; }
+  #diag .ok { color: #7CD48A; }
+  #diag .dim { color: #8A8FA3; }
 </style>
 </head>
 <body>
 <div id="boot"><div class="ring"></div><div>正在加载…</div></div>
-<canvas id="ComposeTarget"></canvas>
-<script src="webApp.js"></script>
+<div id="ComposeTarget"></div>
+<div id="diag"></div>
+
 <script>
-  // wasm 初始化完成后移除加载层
-  (function () {
-    var boot = document.getElementById('boot');
-    function hide() {
-      if (!boot || boot.classList.contains('hide')) return;
-      boot.classList.add('hide');
-      setTimeout(function () { boot && boot.remove(); }, 400);
-    }
-    // Compose 首帧后 canvas 会有非零尺寸
-    var tries = 0;
-    var timer = setInterval(function () {
-      var c = document.getElementById('ComposeTarget');
-      tries++;
-      if (c && c.width > 1 && c.height > 1) {
-        clearInterval(timer);
-        hide();
-      } else if (tries > 600) {  // 60s 兜底
-        clearInterval(timer);
-        hide();
+(function () {
+  var logs = [];
+  var diag = document.getElementById('diag');
+  var boot = document.getElementById('boot');
+  var shown = false;
+
+  function stamp() {
+    var t = new Date();
+    return t.toTimeString().slice(0, 8) + '.' + String(t.getMilliseconds()).padStart(3, '0');
+  }
+
+  function push(kind, msg) {
+    logs.push('[' + stamp() + '] ' + kind + ' ' + msg);
+    if (logs.length > 200) logs.shift();
+    if (shown) diag.textContent = logs.join('\n');
+  }
+
+  // 显示诊断面板（用户可截图）
+  window.__pcpShowDiag = function (reason) {
+    shown = true;
+    if (boot) boot.style.display = 'none';
+    diag.classList.add('on');
+    var head = '<b>PixelColorPicker wasm 启动失败</b>\n' +
+               '原因: ' + (reason || '未知') + '\n' +
+               'UA: ' + navigator.userAgent + '\n' +
+               'DPR: ' + (window.devicePixelRatio || 1) + '\n' +
+               '尺寸: ' + window.innerWidth + 'x' + window.innerHeight + '\n' +
+               'WebGL2: ' + testGL('webgl2') + '\n' +
+               'WebGL1: ' + testGL('webgl') + '\n' +
+               'Wasm: ' + (typeof WebAssembly) + '\n' +
+               '---------------\n';
+    diag.textContent = head + logs.join('\n');
+  };
+
+  function testGL(type) {
+    try {
+      var c = document.createElement('canvas');
+      var g = c.getContext(type);
+      if (!g) return '不支持/null';
+      var dbg = g.getExtension('WEBGL_debug_renderer_info');
+      var r = dbg ? g.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : g.getParameter(g.RENDERER);
+      return 'OK / ' + r;
+    } catch (e) { return '异常 ' + e.message; }
+  }
+
+  // 捕获所有错误
+  window.addEventListener('error', function (e) {
+    var m = (e && e.message) || 'unknown';
+    var src = e && e.filename ? (' @ ' + e.filename.split('/').pop() + ':' + e.lineno) : '';
+    push('ERROR', m + src);
+    // 启动阶段的错误直接弹面板
+    if (!window.__pcpReady) window.__pcpShowDiag('window.error');
+  }, true);
+
+  window.addEventListener('unhandledrejection', function (e) {
+    var r = e && e.reason;
+    var m = (r && (r.stack || r.message)) || String(r);
+    push('REJECT', String(m).slice(0, 800));
+    if (!window.__pcpReady) window.__pcpShowDiag('unhandledrejection');
+  });
+
+  // console.error 也抓
+  var oe = console.error;
+  console.error = function () {
+    var a = Array.prototype.slice.call(arguments).map(function (x) {
+      try { return (x && (x.stack || x.message)) || String(x); } catch (_) { return '[obj]'; }
+    }).join(' ');
+    push('CONSOLE', a.slice(0, 800));
+    oe.apply(console, arguments);
+  };
+
+  push('INFO', 'HTML 已执行，开始等待 wasm');
+
+  // 检测 canvas 是否真的被绘制过（Compose 首帧会设置非零尺寸并绘制）
+  var tries = 0;
+  var timer = setInterval(function () {
+    var host = document.getElementById('ComposeTarget');
+    var c = host ? host.querySelector('canvas') : null;
+    tries++;
+    var w = c ? c.width : 0;
+    var h = c ? c.height : 0;
+    if (tries === 1) push('INFO', '容器 ' + (host ? 'OK' : '缺失') + ' / canvas ' + (c ? '已建' : '未建'));
+    if (w > 1 && h > 1) {
+      clearInterval(timer);
+      push('INFO', 'canvas 已就绪 ' + w + 'x' + h + ' -> 隐藏加载层');
+      window.__pcpReady = true;
+      if (boot) {
+        boot.classList.add('hide');
+        setTimeout(function () { if (boot) boot.remove(); }, 400);
       }
-    }, 100);
-    window.addEventListener('load', function () { setTimeout(hide, 30000); });
-  })();
+    } else if (tries === 120) {
+      push('WARN', '12 秒了 canvas 还是 ' + w + 'x' + h);
+    } else if (tries === 250) {
+      clearInterval(timer);
+      push('WARN', '25 秒未就绪');
+      if (!window.__pcpReady) window.__pcpShowDiag('canvas 25 秒未初始化');
+    }
+  }, 100);
+})();
 </script>
+<script src="webApp.js"></script>
 </body>
 </html>

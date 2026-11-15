@@ -148,5 +148,8 @@ private fun InfoRow(label: String, value: String) {
 
 @OptIn(ExperimentalComposeUiApi::class)
 fun main() {
+    // viewportContainerId 指向一个普通的 div（不是 canvas）。
+    // ComposeViewport 会在该容器内部自行创建 canvas 与输入用 textarea；
+    // 若把容器设成 <canvas>，内部追加的元素不可见，表现为整页黑屏。
     ComposeViewport(viewportContainerId = "ComposeTarget") { App() }
 }
