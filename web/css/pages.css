@@ -1013,7 +1013,13 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  padding-bottom: 96px;
+  /* [对齐 App] 色块可延伸到导航栏下方：只留导航栏高度的一部分，
+     让内容看起来是「铺满整页」而不是被切在导航上方。 */
+  padding-bottom: 0;
+}
+/* 色板主体占满，允许其内容滚动到导航栏背后（导航栏本身是半透明毛玻璃） */
+#page-palette .pcp-scroll {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px));
 }
 #paletteBody {
   flex: 1;
@@ -1024,7 +1030,8 @@
 
 /* ===== 色板：双 QuickBar + 标尺 + 虚拟化视口（同 PaletteGrid） ===== */
 .pcp-pal-hbar {
-  height: 18px;
+  /* [对齐 App] 水平滑块更纤细，不抢视觉 */
+  height: 12px;
   margin: 0 30px;
   position: relative;
   touch-action: none;
@@ -1033,15 +1040,15 @@
 /* 色板/编码滑块：轨道 4px、thumb 6px（同 QuickBar 的 trackW*1.5） */
 .pcp-pal-hbar .pcp-qb-track {
   position: absolute; left: 0; right: 0; top: 50%;
-  transform: translateY(-50%); height: 4px; border-radius: 2px;
-  background: rgba(128,128,128,0.30);
+  transform: translateY(-50%); height: 3px; border-radius: 2px;
+  background: rgba(128,128,128,0.26);
 }
 .pcp-pal-hbar .pcp-qb-thumb {
-  position: absolute; top: 50%; height: 6px; border-radius: 3px;
+  position: absolute; top: 50%; height: 4px; border-radius: 2px;
   transform: translateY(-50%); background: rgba(160,165,180,0.85);
   transition: height .15s;
 }
-.pcp-pal-hbar.is-pressed .pcp-qb-thumb { height: 9px; }
+.pcp-pal-hbar.is-pressed .pcp-qb-thumb { height: 6px; }
 .pcp-pal-vbar .pcp-qb-track {
   position: absolute; top: 0; bottom: 0; left: 50%;
   transform: translateX(-50%); width: 4px; border-radius: 2px;
@@ -1209,6 +1216,8 @@
 }
 
 #codeScroll::-webkit-scrollbar { width: 0; height: 0; }
+/* [对齐 App] 编码页底部不再预留多余空白，保证滑到底就是页面尽头 */
+#codeScroll { padding-bottom: 0 !important; }
 
 .pcp-pal-search.pcp-refresh { margin-left: 2px; }
 

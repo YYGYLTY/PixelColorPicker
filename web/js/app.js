@@ -346,7 +346,12 @@
       var p = presetSize(i);
       var b = document.createElement('button');
       b.className = 'pcp-preset-chip';
-      if (p[0] === VM.canvasWidth && p[1] === VM.canvasHeight) {
+      // [对齐 App] 高亮由 selected 状态决定（不是比对画布尺寸）
+      if (!VM._presetSelected) {
+        // 首次进入：按当前尺寸自动推导选中项
+        if (p[0] === VM.canvasWidth && p[1] === VM.canvasHeight) VM._presetSelected = i + 1;
+      }
+      if (VM._presetSelected === i + 1) {
         b.classList.add('is-active');
       }
       var t = document.createElement('span');
@@ -359,17 +364,22 @@
       bo.className = 'b';
       bo.textContent = p[1];
       b.appendChild(t); b.appendChild(x); b.appendChild(bo);
-      (function (w, h, el) {
+      (function (w, h, el, idx) {
         el.addEventListener('click', function () {
-          // 复刻旧版：点击选中，再点取消
-          if (el.classList.contains('is-active')) {
-            el.classList.remove('is-active');
-            return;
+          // [照抄 HomeScreen 的 selected 状态机]：
+          //   selected == 当前 idx  -> 置 0（取消高亮，但不改画布尺寸）
+          //   否则                  -> 置 idx 并 onPick(w, h)
+          // 旧版只看 is-active 就 return，导致「取消后无法再选同一尺寸」。
+          if (VM._presetSelected === idx) {
+            VM._presetSelected = 0;
+          } else {
+            VM._presetSelected = idx;
+            var ok = setCanvasSize(w, h);
+            if (!ok) toast(S('size_ratio_locked'));
           }
-          var ok = setCanvasSize(w, h);
-          if (!ok) toast(S('size_ratio_locked'));
+          renderPresets();
         });
-      })(p[0], p[1], b);
+      })(p[0], p[1], b, i + 1);
       box.appendChild(b);
     }
 
@@ -498,6 +508,26 @@
     box.style.height = h + 'px';
   }
 
+  /**
+   * [对齐 App] 预览缓存 + 旋转差量显示。
+   *
+   * App 的 ImageDisplayBox 不会为了旋转而重跑 pixelate：
+   *  - pixelate 只在「来源/尺寸/算法/采样参数」变化时重算（computePreview）
+   *  - 旋转则通过 dispRot = previewRotation - rotation 实时绕中心旋转已缓存的位图
+   * 这样旋转既不变形，也不会因为每次重采样而卡顿。
+   */
+  function previewParamsMatch(ES, pw, ph) {
+    var c = VM._pv;
+    if (!c || !c.out) return false;
+    return c.w === pw && c.h === ph &&
+      c.scale === ES.scale && c.sx === (ES.scaleX == null ? ES.scale : ES.scaleX) &&
+      c.sy === (ES.scaleY == null ? ES.scale : ES.scaleY) &&
+      c.ox === ES.ox && c.oy === ES.oy &&
+      c.rot === VM.rotation &&
+      c.algo === VM.algorithm && c.kernel === VM.customKernel &&
+      c.samples === VM.customSamples && c.src === ES.px;
+  }
+
   function drawPreview(fast) {
     var cv = $('previewCanvas');
     var box = $('displayBox');
@@ -537,15 +567,51 @@
     }
     var out;
     var ES = effectiveSource();
-    try {
-      out = Pix.pixelate(ES.px, ES.w, ES.h, pw, ph, {
-        algorithm: VM.algorithm,
-        customKernel: VM.customKernel,
-        customSamples: VM.customSamples,
-        scale: ES.scale, scaleX: ES.scaleX, scaleY: ES.scaleY, offsetX: ES.ox, offsetY: ES.oy,
-        rotationDeg: VM.rotation
-      });
-    } catch (e) { return; }
+    // [对齐 App] 旋转是 90° 整数步进时，不重采样：直接把预览基准角同步到新角度，
+    // 由显示层用 dispRot = previewRot - rotation 实时旋转缓存位图。
+    // 这样旋转不变形、不卡顿（同 MainViewModel.rotateBy 里的 previewRotation = rotation）。
+    var rotStep = VM.rotation || 0;
+    if (VM._pv && VM._pv.out && rotStep !== VM._pv.rot) {
+      // 仅当其它参数完全一致（只差旋转）时，才做「基准角同步」
+      var onlyRotChanged =
+        VM._pv.w === pw && VM._pv.h === ph &&
+        VM._pv.scale === ES.scale &&
+        VM._pv.sx === (ES.scaleX == null ? ES.scale : ES.scaleX) &&
+        VM._pv.sy === (ES.scaleY == null ? ES.scale : ES.scaleY) &&
+        VM._pv.ox === ES.ox && VM._pv.oy === ES.oy &&
+        VM._pv.algo === VM.algorithm && VM._pv.kernel === VM.customKernel &&
+        VM._pv.samples === VM.customSamples && VM._pv.src === ES.px;
+      if (onlyRotChanged) {
+        // 差量为 90° 整数倍：直接复用位图，把基准角同步过去（视觉上不再转）
+        var delta = ((rotStep - VM._pv.rot) % 360 + 360) % 360;
+        if (delta === 0 || delta === 90 || delta === 180 || delta === 270) {
+          VM._pv.rot = rotStep;
+        }
+      }
+    }
+    // 命中缓存则不重算
+    if (previewParamsMatch(ES, pw, ph)) {
+      out = VM._pv.out;
+    } else {
+      try {
+        out = Pix.pixelate(ES.px, ES.w, ES.h, pw, ph, {
+          algorithm: VM.algorithm,
+          customKernel: VM.customKernel,
+          customSamples: VM.customSamples,
+          scale: ES.scale, scaleX: ES.scaleX, scaleY: ES.scaleY, offsetX: ES.ox, offsetY: ES.oy,
+          rotationDeg: VM.rotation
+        });
+      } catch (e) { return; }
+      VM._pv = {
+        out: out, w: pw, h: ph,
+        scale: ES.scale,
+        sx: (ES.scaleX == null ? ES.scale : ES.scaleX),
+        sy: (ES.scaleY == null ? ES.scale : ES.scaleY),
+        ox: ES.ox, oy: ES.oy, rot: VM.rotation,
+        algo: VM.algorithm, kernel: VM.customKernel, samples: VM.customSamples,
+        src: ES.px
+      };
+    }
 
     // ---------- contentRect ----------
     // 已像素化：容器高度就是按画布比例算的，contentRect = 整个容器（严格无拉伸）
@@ -563,6 +629,21 @@
 
     // 先画棋盘格底纹（同 drawCheckerFill）
     drawCheckerRect(ctx, cx0, cy0, cw2, ch2, VM.canvasWidth, VM.canvasHeight);
+    // [对齐 App] dispRot = 缓存基准角 - 当前角；绕 contentRect 中心旋转
+    var dispRot = 0;
+    if (VM._pv && VM._pv.rot != null) {
+      dispRot = (VM._pv.rot || 0) - (VM.rotation || 0);
+    }
+    var needRotate = (dispRot % 360) !== 0;
+    if (needRotate) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(cx0, cy0, cw2, ch2);
+      ctx.clip();
+      ctx.translate(cx0 + cw2 / 2, cy0 + ch2 / 2);
+      ctx.rotate(dispRot * Math.PI / 180);
+      ctx.translate(-(cx0 + cw2 / 2), -(cy0 + ch2 / 2));
+    }
 
     // 画像素画
     if (VM.gridEnabled && VM.canvasWidth <= 160 && VM.canvasHeight <= 160 && pw === VM.canvasWidth && ph === VM.canvasHeight) {
@@ -586,6 +667,7 @@
       ctx.drawImage(tmp, cx0, cy0, cw2, ch2);
     }
 
+    if (needRotate) { ctx.restore(); }
     // 网格覆盖（同 ImageDisplayBox 的网格逻辑）
     if (VM.gridEnabled && VM.canvasWidth <= 160 && VM.canvasHeight <= 160) {
       var cellW = cw2 / VM.canvasWidth;
@@ -999,11 +1081,11 @@
     if (!view) return;
     var left = Math.max(0, cx * cell + cell / 2 - view.clientWidth / 2);
     var top = Math.max(0, cy * cell + cell / 2 - view.clientHeight / 2);
-    // 先立即定位（smooth 在部分安卓 WebView 上无效，会导致「点了没反应」）
+    // [修复] 只用瞬时定位：smooth 在安卓 WebView 上要么无效（点不动），
+    // 要么动画期间 scroll 事件连续触发 drawPaletteView，把高亮刷掉，
+    // 表现为「跳过去又瞬间弹回来」。
     view.scrollLeft = left;
     view.scrollTop = top;
-    // 再尝试平滑（成功则覆盖，失败不影响已定位的位置）
-    try { view.scrollTo({ left: left, top: top, behavior: 'smooth' }); } catch (err) {}
     // 跳转后给出可见反馈：底部坐标提示 + 该格高亮
     var tip = $('paletteTip');
     if (tip) tip.textContent = 'X ' + (cx + 1) + ' · Y ' + (cy + 1);
@@ -1365,9 +1447,32 @@
         drawCustomPreview();
         return;
       }
-      // 按当前参数重新采样 → 更新 VM.pixelArt → 色板/编码实时刷新
-      generate();
+      // [对齐 App] 拖拽/缩放结束只是重采样，不弹“已生成像素画”提示。
+      // App 的 commitTransform() 只计算 preview 和 gridDirty，不 toast。
+      resampleSilently();
       drawCustomPreview();
+    }
+
+    /** 静默重采样：复用 generate 的采样逻辑，但不弹 toast、不重置变换。 */
+    function resampleSilently() {
+      var ES = effectiveSource();
+      var out;
+      try {
+        out = Pix.pixelate(ES.px, ES.w, ES.h, VM.canvasWidth, VM.canvasHeight, {
+          algorithm: VM.algorithm,
+          customKernel: VM.customKernel,
+          customSamples: VM.customSamples,
+          scale: ES.scale, scaleX: ES.scaleX, scaleY: ES.scaleY,
+          offsetX: ES.ox, offsetY: ES.oy,
+          rotationDeg: VM.rotation
+        });
+      } catch (e) { return; }
+      VM.pixelArt = out;
+      VM.artW = VM.canvasWidth;
+      VM.artH = VM.canvasHeight;
+      renderPalette();
+      renderCodes();
+      drawPreview();
     }
 
     function endDrag(e) {
@@ -1811,6 +1916,15 @@
       '<button class="pcp-back-btn" id="edBack"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button>' +
       '<h2 class="pcp-editor-title">' + S('new_blank_canvas') + '</h2>' +
       '<span class="pcp-editor-meta" id="edMeta"></span>' +
+      // [对齐 App] TopAppBar actions：撤销 / 重做 / 历史
+      '<div class="pcp-ed-actions">' +
+      '<button class="pcp-ed-act" id="edUndo" aria-label="undo">' +
+      '<svg viewBox="0 0 24 24" fill="none"><path fill="currentColor" d="M12.5,8c-2.65,0 -5.05,0.99 -6.9,2.6L2,7v9h9l-3.62,-3.62c1.39,-1.16 3.16,-1.88 5.12,-1.88 3.54,0 6.55,2.31 7.6,5.5l2.37,-0.78C21.08,11.03 17.15,8 12.5,8z"/></svg></button>' +
+      '<button class="pcp-ed-act" id="edRedo" aria-label="redo">' +
+      '<svg viewBox="0 0 24 24" fill="none"><path fill="currentColor" d="M18.4,10.6C16.55,8.99 14.15,8 11.5,8c-4.65,0 -8.58,3.03 -9.96,7.22L3.9,16c1.05,-3.19 4.05,-5.5 7.6,-5.5 1.95,0 3.73,0.72 5.12,1.88L13,16h9V7l-3.6,3.6z"/></svg></button>' +
+      '<button class="pcp-ed-act" id="edHistory" aria-label="history">' +
+      '<svg viewBox="0 0 24 24" fill="none"><path fill="currentColor" d="M13,3a9,9 0 0 0 -9,9H1l3.89,3.89 0.07,0.14L9,12H6a7,7 0 1 1 2.05,4.95l-1.42,1.42A9,9 0 1 0 13,3zM12,8v5l4.28,2.54 0.72,-1.21 -3.5,-2.08V8H12z"/></svg></button>' +
+      '</div>' +
       '</div>' +
       '<div class="pcp-editor-wrap"><canvas id="editorCanvas"></canvas></div>' +
       '<div class="pcp-ed-nav" id="edNav" hidden></div>' +
@@ -1826,6 +1940,10 @@
       sub.remove();
       VM.subScreen = null;
     };
+    // [对齐 App] 撤销 / 重做 / 历史
+    if ($('edUndo')) $('edUndo').onclick = function () { doUndo(); };
+    if ($('edRedo')) $('edRedo').onclick = function () { doRedo(); };
+    if ($('edHistory')) $('edHistory').onclick = function () { showEditorHistory(); };
 
     // ---------- 工具栏（图标 + 文字，同 ToolBar） ----------
     var tools = [
@@ -2391,6 +2509,20 @@
         ctx.beginPath(); ctx.moveTo(0, py2); ctx.lineTo(cw, py2); ctx.stroke();
       }
     }
+    // [对齐 App PixelCanvas SelectionRing] 选中格描边
+    if (VM.edSel != null && VM.edSel >= 0 && mult >= 3 && W > 0) {
+      var selY = Math.floor(VM.edSel / W);
+      var selX = VM.edSel - selY * W;
+      if (selX >= 0 && selX < W && selY >= 0 && selY < H) {
+        var sx0 = Math.floor(selX * mult) + offX;
+        var sy0 = Math.floor(selY * mult) + offY;
+        var sx1 = Math.max(sx0 + 1, Math.floor((selX + 1) * mult) + offX);
+        var sy1 = Math.max(sy0 + 1, Math.floor((selY + 1) * mult) + offY);
+        ctx.strokeStyle = "#7C5CFF";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(sx0 + 1, sy0 + 1, Math.max(1, sx1 - sx0 - 2), Math.max(1, sy1 - sy0 - 2));
+      }
+    }
   }
 
   function pushUndo() {
@@ -2412,6 +2544,60 @@
     VM.undo.push(VM.editPixels.slice());
     VM.editPixels = VM.redo.pop();
     renderEditor();
+  }
+
+  /**
+   * [对齐 App openHistory] 打开编辑历史。
+   * App 从磁盘目录读 hist_*.png；网页端无文件系统，改用 localStorage 保存
+   * 最近的画作快照（缩略 dataURL），支持查看与删除。
+   */
+  function showEditorHistory() {
+    var list = [];
+    try { list = JSON.parse(localStorage.getItem('pcp.editorHistory') || '[]'); } catch (e) { list = []; }
+    var html = '<h3 class="pcp-dialog-title">' + S('editor_history') + '</h3>';
+    if (!list.length) {
+      html += '<p class="pcp-dialog-hint">' + S('history_empty') + '</p>' +
+              '<div class="pcp-dialog-actions"><button class="pcp-dialog-btn primary" id="dlgOk">'
+              + S('action_done') + '</button></div>';
+    } else {
+      html += '<div class="pcp-hist-list">';
+      for (var i = 0; i < list.length; i++) {
+        html += '<div class="pcp-hist-item" data-i="' + i + '">' +
+                '<img src="' + list[i].url + '" alt="">' +
+                '<span class="t">' + (list[i].title || ('#' + (i + 1))) + '</span>' +
+                '<button class="pcp-hist-del" data-i="' + i + '">×</button></div>';
+      }
+      html += '</div><div class="pcp-dialog-actions"><button class="pcp-dialog-btn" id="dlgCancel">'
+              + S('action_cancel') + '</button>' +
+              '<button class="pcp-dialog-btn primary" id="dlgOk">' + S('action_done') + '</button></div>';
+    }
+    openDialog(html);
+    if ($('dlgCancel')) $('dlgCancel').onclick = closeDialog;
+    if ($('dlgOk')) $('dlgOk').onclick = closeDialog;
+    var dels = document.querySelectorAll('.pcp-hist-del');
+    for (var k = 0; k < dels.length; k++) {
+      dels[k].onclick = function (e) {
+        e.stopPropagation();
+        var i = parseInt(this.getAttribute('data-i'), 10);
+        list.splice(i, 1);
+        try { localStorage.setItem('pcp.editorHistory', JSON.stringify(list)); } catch (err) {}
+        closeDialog();
+        showEditorHistory();
+      };
+    }
+  }
+
+  /** 保存一次历史快照（供 editorSave 调用）。 */
+  function pushEditorHistory() {
+    var cv = $('editorCanvas');
+    if (!cv) return;
+    var list = [];
+    try { list = JSON.parse(localStorage.getItem('pcp.editorHistory') || '[]'); } catch (e) { list = []; }
+    var url;
+    try { url = cv.toDataURL('image/png'); } catch (e) { return; }
+    list.unshift({ url: url, title: VM.editW + '×' + VM.editH, t: Date.now() });
+    if (list.length > 12) list = list.slice(0, 12);
+    try { localStorage.setItem('pcp.editorHistory', JSON.stringify(list)); } catch (e) {}
   }
 
   function doClear() {
@@ -2747,6 +2933,7 @@
     for (var j = 0; j < navs.length; j++) {
       navs[j].classList.toggle('is-active', navs[j].getAttribute('data-tab') === name);
     }
+    if (name === 'home' && VM._paintTopLogo) { VM._paintTopLogo(); }
     if (name === 'about') renderAbout();
     if (name === 'palette') {
       renderPalette();
@@ -2803,7 +2990,30 @@
     applyI18n();
 
     // Logo
-    drawLogo($('topLogo'), 80);
+    // [修复] 启动时 canvas 尺寸可能还没定（clientWidth=0 / dpr 变化），
+    // 导致 logo 偶发空白，需要刷新才出现。这里做三重保障：
+    //   1) 立即画一次
+    //   2) 下一帧再画（布局完成）
+    //   3) 尺寸变化（resize / dpr 变化）时重画
+    function paintTopLogo() {
+      var el = $('topLogo');
+      if (!el) return;
+      var rect = el.getBoundingClientRect();
+      if (rect.width < 1 || rect.height < 1) return;  // 还没布局好，跳过
+      drawLogo(el, 80);
+    }
+    paintTopLogo();
+    requestAnimationFrame(paintTopLogo);
+    setTimeout(paintTopLogo, 120);
+    window.addEventListener('resize', paintTopLogo);
+    if (window.matchMedia) {
+      try {
+        var mq = window.matchMedia('(resolution: ' + (window.devicePixelRatio || 1) + 'dppx)');
+        if (mq.addEventListener) mq.addEventListener('change', paintTopLogo);
+      } catch (e) {}
+    }
+    // 切回首页时也补画一次（避免被其他页面重绘影响）
+    VM._paintTopLogo = paintTopLogo;
 
     // 尺寸
     updateSizeUI();
