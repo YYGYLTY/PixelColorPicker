@@ -1093,22 +1093,30 @@
   white-space: nowrap;
   font-family: ui-monospace, Menlo, Consolas, monospace;
 }
-.pcp-pal-view {
+/* 视口包装：canvas 画可视区，滚动容器叠在上面负责滚动/点击 */
+.pcp-pal-viewwrap {
   flex: 1;
   min-width: 0;
   position: relative;
-  overflow: auto;
-  -webkit-overflow-scrolling: touch;
+  overflow: hidden;
 }
-.pcp-pal-view::-webkit-scrollbar { width: 0; height: 0; }
 #paletteCanvas {
-  position: sticky;
+  position: absolute;
   top: 0;
   left: 0;
   display: block;
   pointer-events: none;
-  z-index: 2;
+  z-index: 1;
 }
+.pcp-pal-view {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  z-index: 2;
+  background: transparent;
+}
+.pcp-pal-view::-webkit-scrollbar { width: 0; height: 0; }
 .pcp-pal-spacer { width: 1px; height: 1px; }
 .pcp-pal-vbar {
   width: 20px;
@@ -1203,3 +1211,49 @@
 #codeScroll::-webkit-scrollbar { width: 0; height: 0; }
 
 .pcp-pal-search.pcp-refresh { margin-left: 2px; }
+
+/* ===== 编辑器：极端比例导航滑块（同 EditorScreen 的 3 个 Slider） ===== */
+.pcp-ed-nav {
+  padding: 6px 20px 0;
+  flex: 0 0 auto;
+}
+.pcp-ed-nav[hidden] { display: none; }
+.pcp-ed-slider-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+}
+.pcp-ed-slider-row .lb {
+  width: 60px;
+  flex: 0 0 60px;
+  font-size: 11px;
+  color: var(--pcp-TextSecondary);
+}
+.pcp-ed-slider-row .val {
+  width: 48px;
+  flex: 0 0 48px;
+  font-size: 11px;
+  color: var(--pcp-TextSecondary);
+  text-align: right;
+  font-family: ui-monospace, monospace;
+}
+.pcp-ed-range {
+  flex: 1;
+  min-width: 0;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(128,128,128,0.30);
+  outline: none;
+}
+.pcp-ed-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--pcp-Primary);
+  border: none;
+}
