@@ -1,6 +1,5 @@
 package com.pixelcolorpicker.codec
 
-import java.io.ByteArrayOutputStream
 
 /**
  * PixelColorPicker 旧版「一键复制16色」协议编码器。
@@ -26,6 +25,44 @@ import java.io.ByteArrayOutputStream
  * 该对象不依赖 Android SDK，可在 JVM 单元测试中直接运行。
  */
 object PaletteCodec {
+
+    /**
+     * 极简可变字节缓冲（wasm 没有 java.io.ByteArrayOutputStream）。
+     * API 与 ByteArrayOutputStream 的 write / toByteArray 对齐。
+     */
+    class Buf(initial: Int = 64) {
+        private var arr = ByteArray(initial)
+        private var len = 0
+
+        private fun ensure(extra: Int) {
+            if (len + extra <= arr.size) return
+            var cap = arr.size
+            while (cap < len + extra) cap *= 2
+            arr = arr.copyOf(cap)
+        }
+
+        fun write(b: Int) {
+            ensure(1)
+            arr[len++] = b.toByte()
+        }
+
+        fun write(bytes: ByteArray) {
+            ensure(bytes.size)
+            bytes.copyInto(arr, len)
+            len += bytes.size
+        }
+
+        fun write(bytes: ByteArray, off: Int, count: Int) {
+            ensure(count)
+            bytes.copyInto(arr, len, off, off + count)
+            len += count
+        }
+
+        fun size(): Int = len
+
+        fun toByteArray(): ByteArray = arr.copyOf(len)
+    }
+
 
     /** 像素画边长。 */
     const val SIZE = 16
@@ -60,7 +97,7 @@ object PaletteCodec {
         require(pixels.size >= SIZE * SIZE) {
             "pixels 长度必须 >= ${SIZE * SIZE}，实际 ${pixels.size}"
         }
-        val out = ByteArrayOutputStream()
+        val out = Buf()
 
         // field 1: string "18"  ->  0A 02 '1' '8'
         out.write(0x0A)
@@ -83,7 +120,7 @@ object PaletteCodec {
     /**
      * 写出一个 Color 的 field 2 条目：0x12 + varint(len) + ColorMessage。
      */
-    private fun writeColorField(out: ByteArrayOutputStream, argb: Int) {
+    private fun writeColorField(out: Buf, argb: Int) {
         val colorMsg = encodeColor(argb)
         out.write(0x12)
         writeVarint(out, colorMsg.size.toLong())
@@ -95,7 +132,7 @@ object PaletteCodec {
      * 注意：忽略传入颜色的 alpha，alpha 恒写 255。
      */
     fun encodeColor(argb: Int): ByteArray {
-        val out = ByteArrayOutputStream()
+        val out = Buf()
         val r = (argb ushr 16) and 0xFF
         val g = (argb ushr 8) and 0xFF
         val b = argb and 0xFF
@@ -122,7 +159,7 @@ object PaletteCodec {
     /**
      * 标准 Protobuf Varint 编码。
      */
-    fun writeVarint(out: ByteArrayOutputStream, value: Long) {
+    fun writeVarint(out: Buf, value: Long) {
         var v = value
         while (true) {
             if ((v and 0x7FL.inv()) == 0L) {
@@ -141,7 +178,7 @@ object PaletteCodec {
         // wasm 没有 java.util.zip.GZIPOutputStream。
         // 这里写一个合法的 GZIP 容器（deflate stored 模式，不压缩）。
         // 解码端（inflate）能正常解出原始字节，协议兼容。
-        val out = ByteArrayOutputStream()
+        val out = Buf()
         // --- GZIP header ---
         out.write(0x1F); out.write(0x8B)   // magic
         out.write(0x08)                     // CM = deflate
@@ -276,7 +313,7 @@ object PaletteCodec {
      */
     fun encodeColumn(colors16: IntArray): String {
         require(colors16.size == SIZE) { "列颜色必须为 16 个，实际 ${colors16.size}" }
-        val palette = ByteArrayOutputStream()
+        val palette = Buf()
         // field 1: string "18"（固定值，与旧版一致）
         palette.write(0x0A)
         palette.write(0x02)

@@ -1,5 +1,6 @@
 package com.pixelcolorpicker.image
 
+import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.cos
@@ -95,7 +96,7 @@ object Pixelator {
         val out = IntArray(outW * outH)
 
         val safeScale = scale.coerceAtLeast(0.01f)
-        val rad = Math.toRadians(-rotationDeg.toDouble())
+        val rad = (-rotationDeg.toDouble()) * PI / 180.0
         val cosT = cos(rad).toFloat()
         val sinT = sin(rad).toFloat()
 
@@ -358,7 +359,7 @@ object Pixelator {
         val at = abs(t)
         if (at < 1e-6f) return 1f
         if (at >= a) return 0f
-        val pt = Math.PI.toFloat() * t
+        val pt = PI.toFloat() * t
         return (sin(pt) / pt) * (sin(pt / a) / (pt / a))
     }
 

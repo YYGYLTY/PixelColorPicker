@@ -1,7 +1,7 @@
 package com.pixelcolorpicker.res
 
 /**
- * 字符串表（由 app/src/main/res/values*/strings.xml 自动生成）。
+ * 字符串表（由 app/src/main/res/values/strings.xml 自动生成）。
  * wasm 没有 Android 资源系统，用这张表替代 R.string + stringResource。
  *
  * 生成时间：构建脚本自动同步，不要手改。
