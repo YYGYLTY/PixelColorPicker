@@ -25,13 +25,19 @@ object ColorUtils {
     fun argb(a: Int, r: Int, g: Int, b: Int): Int =
         ((a and 0xFF) shl 24) or ((r and 0xFF) shl 16) or ((g and 0xFF) shl 8) or (b and 0xFF)
 
+    /** 两位大写 hex（KMP 无 String.format）。 */
+    private fun h2(v: Int): String {
+        val n = v and 0xFF
+        return HEX[n ushr 4].toString() + HEX[n and 0x0F].toString()
+    }
+    private val HEX = "0123456789ABCDEF"
     /** 格式化为 #RRGGBB。 */
     fun toHexRgb(argb: Int): String =
-        String.format("#%02X%02X%02X", red(argb), green(argb), blue(argb))
+        "#" + h2(red(argb)) + h2(green(argb)) + h2(blue(argb))
 
     /** 格式化为 #AARRGGBB。 */
     fun toHexArgb(argb: Int): String =
-        String.format("#%08X", argb)
+        "#" + h2(alpha(argb)) + h2(red(argb)) + h2(green(argb)) + h2(blue(argb))
 
     /** 判断颜色是否透明（alpha == 0）。 */
     fun isTransparent(argb: Int): Boolean = alpha(argb) == 0
