@@ -271,7 +271,31 @@
     } else {
       // 每 5 秒报一次进度（wasm 总共约 4.2MB，慢网下需要 1-3 分钟）
       if (tries % 50 === 0) {
-        push('WAIT', '已等待 ' + (tries / 10).toFixed(0) + ' 秒 / canvas ' + w + 'x' + h);
+        var sec = (tries / 10).toFixed(0);
+        // 容器尺寸
+        var hostInfo = host
+          ? (host.clientWidth + 'x' + host.clientHeight +
+             ' (offset ' + host.offsetWidth + 'x' + host.offsetHeight + ')')
+          : '缺失';
+        // 全文档 canvas 枚举
+        var all = document.querySelectorAll('canvas');
+        var cinfo = [];
+        for (var k = 0; k < all.length; k++) {
+          var cc = all[k];
+          var pid = (cc.parentElement && (cc.parentElement.id || cc.parentElement.tagName)) || 'none';
+          cinfo.push('#' + k + '{id=' + (cc.id || '-') + ',parent=' + pid +
+            ',' + cc.width + 'x' + cc.height +
+            ',css=' + cc.clientWidth + 'x' + cc.clientHeight + '}');
+        }
+        push('WAIT', sec + 's | 容器=' + hostInfo +
+             ' | canvas数=' + all.length + (cinfo.length ? ' ' + cinfo.join(' ') : ''));
+        if (tries === 50) {
+          push('GL', 'WebGL2=' + testGL('webgl2'));
+          push('GL', 'WebGL1=' + testGL('webgl'));
+          push('GL', 'Wasm=' + (typeof WebAssembly) + ' / callStack=' + (typeof WebAssembly.Function));
+          push('GL', 'body=' + document.body.clientWidth + 'x' + document.body.clientHeight +
+               ' / dpr=' + (window.devicePixelRatio || 1));
+        }
       }
       if (tries === 1800) {   // 180 秒兜底
         clearInterval(timer);
