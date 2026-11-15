@@ -33,13 +33,13 @@ jobs:
 
       - name: Compile wasmJs
         run: |
-          ./gradlew :webApp:compileKotlinWasmJs --stacktrace --no-daemon
+          gradle :webApp:compileKotlinWasmJs --stacktrace --no-daemon
         env:
           GRADLE_OPTS: '-Xmx3g'
 
       - name: Dist
         run: |
-          ./gradlew :webApp:wasmJsBrowserDistribution --stacktrace --no-daemon
+          gradle :webApp:wasmJsBrowserDistribution --stacktrace --no-daemon
 
       - name: Show output
         if: always()
