@@ -31,6 +31,16 @@
     transition: opacity .35s ease; z-index: 10;
   }
   #boot.hide { opacity: 0; pointer-events: none; }
+  #bar {
+    width: 62vw; max-width: 320px; height: 5px;
+    background: #1A1D2B; border-radius: 3px; overflow: hidden;
+  }
+  #barfill {
+    width: 0%; height: 100%;
+    background: linear-gradient(90deg, #7C5CFF, #B49CFF);
+    border-radius: 3px; transition: width .25s ease;
+  }
+  #bar.done { opacity: 0; transition: opacity .3s ease; }
   #bootlog {
     max-width: 92vw; max-height: 52vh; overflow: auto;
     font: 11px/1.5 ui-monospace, Menlo, Consolas, monospace;
@@ -62,7 +72,8 @@
 <body>
 <div id="boot">
   <div class="ring"></div>
-  <div>正在加载…</div>
+  <div id="bootmsg">正在加载核心引擎…</div>
+  <div id="bar"><div id="barfill"></div></div>
   <div id="bootlog"></div>
 </div>
 <div id="ComposeTarget"></div>
@@ -152,6 +163,48 @@
 
   push('INFO', 'HTML 已执行，开始等待 wasm');
 
+  // 主动预取 skiko.wasm 以显示下载进度；
+  // 浏览器缓存（max-age=600）会让 Skiko 自己再取时直接命中。
+  (function prefetch() {
+    var barfill = document.getElementById('barfill');
+    var bootmsg = document.getElementById('bootmsg');
+    var bar = document.getElementById('bar');
+    var target = null;
+    try {
+      target = new URL('658820f72b4617efb380.wasm', location.href).href;
+    } catch (e) {}
+    if (!target || !window.fetch || !window.ReadableStream) return;
+
+    fetch(target, { cache: 'force-cache' }).then(function (resp) {
+      if (!resp.ok || !resp.body) return;
+      var total = parseInt(resp.headers.get('content-length') || '0', 10);
+      var got = 0;
+      var reader = resp.body.getReader();
+      function pump() {
+        return reader.read().then(function (r) {
+          if (r.done) {
+            if (bootmsg) bootmsg.textContent = '核心引擎就绪，正在启动界面…';
+            if (bar) bar.classList.add('done');
+            push('INFO', 'skiko.wasm 预取完成 ' + (got / 1048576).toFixed(1) + 'MB');
+            return;
+          }
+          got += r.value.length;
+          if (total > 0 && barfill) {
+            var pct = Math.min(100, Math.round(got / total * 100));
+            barfill.style.width = pct + '%';
+            if (bootmsg) bootmsg.textContent = '正在加载核心引擎 ' + pct + '%';
+          } else if (bootmsg) {
+            bootmsg.textContent = '正在加载 ' + (got / 1048576).toFixed(1) + 'MB';
+          }
+          return pump();
+        });
+      }
+      return pump();
+    }).catch(function (e) {
+      push('WARN', '预取失败（不影响后续加载）: ' + e.message);
+    });
+  })();
+
   // 检测 canvas 是否真的被绘制过（Compose 首帧会设置非零尺寸并绘制）
   var tries = 0;
   var timer = setInterval(function () {
@@ -169,12 +222,15 @@
         boot.classList.add('hide');
         setTimeout(function () { if (boot) boot.remove(); }, 400);
       }
-    } else if (tries === 120) {
-      push('WARN', '12 秒了 canvas 还是 ' + w + 'x' + h);
-    } else if (tries === 250) {
-      clearInterval(timer);
-      push('WARN', '25 秒未就绪');
-      if (!window.__pcpReady) window.__pcpShowDiag('canvas 25 秒未初始化');
+    } else {
+      // 每 5 秒报一次进度（wasm 总共约 4.2MB，慢网下需要 1-3 分钟）
+      if (tries % 50 === 0) {
+        push('WAIT', '已等待 ' + (tries / 10).toFixed(0) + ' 秒 / canvas ' + w + 'x' + h);
+      }
+      if (tries === 1800) {   // 180 秒兜底
+        clearInterval(timer);
+        if (!window.__pcpReady) window.__pcpShowDiag('180 秒仍未初始化');
+      }
     }
   }, 100);
 })();
