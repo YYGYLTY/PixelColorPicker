@@ -8,7 +8,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import com.pixelcolorpicker.res.str
-import com.pixelcolorpicker.R
 
 /** 语言选择对话框（中文 / English / 日本語）。 */
 @Composable
