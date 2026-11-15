@@ -366,7 +366,8 @@
             el.classList.remove('is-active');
             return;
           }
-          setCanvasSize(w, h);
+          var ok = setCanvasSize(w, h);
+          if (!ok) toast(S('size_ratio_locked'));
         });
       })(p[0], p[1], b);
       box.appendChild(b);
@@ -389,36 +390,44 @@
     } catch (e) {}
   }
 
+  /** [照抄 MainViewModel.setCanvasSize:138-164] */
   function setCanvasSize(w, h) {
-    w = clamp(w | 0, 1, 999);
-    h = clamp(h | 0, 1, 999);
-    var oldRatio = VM.canvasWidth / VM.canvasHeight;
-    var newRatio = w / h;
-    // 正方形才能旋转（对应 rotate_square_only）
-    VM.canvasWidth = w;
-    VM.canvasHeight = h;
+    var nw = clamp(w | 0, 1, 999);
+    var nh = clamp(h | 0, 1, 999);
+    if (nw === VM.canvasWidth && nh === VM.canvasHeight) return true;
+    var hadArt = VM.isPixelated && !!VM.sourceBitmap;
+    if (hadArt) {
+      // 已生成像素画：判断是否同比例
+      var sameRatio = VM.canvasWidth * nh === VM.canvasHeight * nw;
+      VM.canvasWidth = nw;
+      VM.canvasHeight = nh;
+      saveCanvasSize();
+      recordSizeHistory();
+      if (sameRatio) {
+        // 同比例：直接按新尺寸重新采样（像素画等比缩放，不变形）
+        onImageParamsChanged();
+        return true;
+      }
+      // 不同比例：保持画面不变，仅记录比例，由调用方提示重新框选
+      return false;
+    }
+    VM.canvasWidth = nw;
+    VM.canvasHeight = nh;
     saveCanvasSize();
-    recordSizeHistory(); // [对齐 App] 记录使用历史
+    recordSizeHistory();
+    onImageParamsChanged();
+    return true;
+  }
+
+  /** [照抄] onImageParamsChanged：参数变了就重算预览 + 让色板失效。 */
+  function onImageParamsChanged() {
+    if (VM.isPixelated && VM.sourceBitmap) {
+      generate();
+    } else {
+      drawPreview();
+    }
     updateSizeUI();
     renderPresets();
-    // [对齐 App] setCanvasSize
-    if (VM.isPixelated && VM.sourceBitmap) {
-      if (Math.abs(oldRatio - newRatio) > 1e-6) {
-        // 比例不同：回到原图，提示重新框选
-        VM.isPixelated = false;
-        VM.pixelArt = null;
-        VM.artW = 0; VM.artH = 0;
-        $('saveAlbumBtn').disabled = true;
-        renderPalette();
-        renderCodes();
-        toast(S('crop_hint'));
-      } else {
-        // [修复] 同比例：立即按新尺寸重新采样，色板/编码/编辑器同步更新
-        generate();
-        return;
-      }
-    }
-    drawPreview();
   }
 
   function updateSizeUI() {
@@ -622,10 +631,20 @@
   // ==================== 生成 ====================
   function generate() {
     if (!VM.sourceBitmap) { toast(S('pick_first')); return; }
+    // [照抄 MainViewModel:712-726] 已生成且裁剪比例 ≠ 画布比例 → 提示重新框选，不生成
+    if (VM.isPixelated) {
+      var cropRatio = VM.sourceW / VM.sourceH;
+      var canvasRatio = VM.canvasWidth / VM.canvasHeight;
+      if (Math.abs(cropRatio - canvasRatio) > 0.0001) {
+        toast(S('size_ratio_locked'));
+        return;
+      }
+    }
     // [对齐 App] 首次生成时先重置变换，再按新参数采样
     if (!VM.isPixelated) {
       VM.scale = 1; VM.offsetX = 0; VM.offsetY = 0; VM.rotation = 0;
     }
+    recordSizeHistory();
     var t0 = performance.now();
     var out;
     var ES = effectiveSource();
@@ -684,8 +703,10 @@
   function renderPalette() {
     var empty = $('paletteEmpty');
     var body = $('paletteBody');
-    var sb = $('palSearchBtn'); if (sb) sb.hidden = !VM.pixelArt;
-    var rf = $('palRefreshBtn'); if (rf) rf.hidden = !VM.pixelArt;
+    var sb = $('palSearchBtn');
+    if (sb) { sb.hidden = !VM.pixelArt; sb.style.display = VM.pixelArt ? '' : 'none'; }
+    var rf = $('palRefreshBtn');
+    if (rf) { rf.hidden = !VM.pixelArt; rf.style.display = VM.pixelArt ? '' : 'none'; }
     if (!VM.pixelArt) {
       if (empty) empty.hidden = false;
       if (body) body.hidden = true;
@@ -1336,6 +1357,18 @@
       sx = e.clientX; sy = e.clientY;
       drawPreview(true);
     });
+    /** [照抄 onImageParamsChanged] 参数变了：重新采样像素画，同步色板/编码。 */
+    function commitTransform() {
+      if (!VM.isPixelated) {
+        drawPreview();
+        drawCustomPreview();
+        return;
+      }
+      // 按当前参数重新采样 → 更新 VM.pixelArt → 色板/编码实时刷新
+      generate();
+      drawCustomPreview();
+    }
+
     function endDrag(e) {
       if (e.pointerId in ptrs) delete ptrs[e.pointerId];
       var n = ptrList().length;
@@ -1351,20 +1384,23 @@
       dragging = false;
       pinchPrev = 0;
       try { box.releasePointerCapture(e.pointerId); } catch (err) {}
-      // 松手后用全分辨率重算
-      drawPreview();
-      drawCustomPreview();
+      // [照抄 App] 拖拽结束 → onImageParamsChanged：重新采样像素画 + 色板/编码同步
+      commitTransform();
     }
     box.addEventListener('pointerup', endDrag);
     box.addEventListener('pointercancel', endDrag);
 
     // 滚轮缩放
+    var wheelTimer = null;
     box.addEventListener('wheel', function (e) {
       if (!VM.sourceBitmap) return;
       e.preventDefault();
       // [对齐 App] dragAdjustZoom：缩放后重新约束 offset
       dragAdjustZoom(e.deltaY > 0 ? 0.92 : 1.08);
       drawPreview(true);
+      // 滚动停止后提交（重新采样，色板/编码同步）
+      clearTimeout(wheelTimer);
+      wheelTimer = setTimeout(function () { commitTransform(); }, 180);
     }, { passive: false });
   }
 
@@ -1452,14 +1488,6 @@
     }
     var dOffX = -(dxPx / boxW) * (L.winW / L.baseW);
     var dOffY = -(dyPx / boxH) * (L.winH / L.baseH);
-    // [修复] 采样是逆旋转的，拖拽方向也要跟着转（旋转 90° 后水平拖应改垂直）
-    var rot = (VM.rotation || 0) * Math.PI / 180;
-    if (rot !== 0) {
-      var cosR = Math.cos(rot), sinR = Math.sin(rot);
-      var rx2 = dOffX * cosR - dOffY * sinR;
-      var ry2 = dOffX * sinR + dOffY * cosR;
-      dOffX = rx2; dOffY = ry2;
-    }
     VM.offsetX = clamp(VM.offsetX + dOffX, L.xMin, L.xMax);
     VM.offsetY = clamp(VM.offsetY + dOffY, L.yMin, L.yMax);
   }
@@ -1528,11 +1556,12 @@
         $('dlgErr').textContent = S('size_invalid');
         return;
       }
-      if (isWidth) VM.canvasWidth = v; else VM.canvasHeight = v;
-      updateSizeUI();
-      renderPresets();
-      drawPreview();
+      // [照抄 HomeScreen:408-412] 统一走 setCanvasSize，返回 false 提示比例锁定
+      var ok = isWidth
+        ? setCanvasSize(v, VM.canvasHeight)
+        : setCanvasSize(VM.canvasWidth, v);
       closeDialog();
+      if (!ok) toast(S('size_ratio_locked'));
     };
   }
 
@@ -1788,8 +1817,9 @@
 
     // ---------- 工具栏（图标 + 文字，同 ToolBar） ----------
     var tools = [
+      // Material Icons filled（同 EditorScreen.kt 的 Icons.Default.Edit/AutoFixNormal/Colorize/FormatColorFill）
       { id: 'brush', key: 'editor_tool_pencil', icon: '<path fill="currentColor" stroke="none" d="M3,17.25V21h3.75L17.81,9.94l-3.75,-3.75L3,17.25zM20.71,7.04c0.39,-0.39 0.39,-1.02 0,-1.41l-2.34,-2.34c-0.39,-0.39 -1.02,-0.39 -1.41,0l-1.83,1.83 3.75,3.75 1.83,-1.83z"/>' },
-      { id: 'eraser', key: 'editor_tool_eraser', icon: '<path fill="currentColor" stroke="none" d="M7.5,5.6L10,7 8.6,9.5 6.1,8.1 7.5,5.6M19.5,15.4L22,16.8 20.6,19.3 18.1,17.9 19.5,15.4M22,5.8L20.6,3.3 18.1,4.7 19.5,7.2 22,5.8M13.6,8.4L11.1,7 12.5,4.5 15,5.9 13.6,8.4M7.8,14.8L5.3,13.4 6.7,10.9 9.2,12.3 7.8,14.8M11.4,19.4L8.9,18 10.3,15.5 12.8,16.9 11.4,19.4M19.1,9.4L16.6,8 18,5.5 20.5,6.9 19.1,9.4M4.9,9.4L2.4,8 3.8,5.5 6.3,6.9 4.9,9.4M16.6,20.4L14.1,19 15.5,16.5 18,17.9 16.6,20.4M2.5,19.4L5,18 3.6,15.5 1.1,16.9 2.5,19.4z"/>' },
+      { id: 'eraser', key: 'editor_tool_eraser', icon: '<path fill="currentColor" stroke="none" d="M20.71,4.63l-1.34,-1.34c-0.37,-0.37 -0.98,-0.37 -1.35,0L15.62,5.7l3.68,3.68 2.41,-2.41c0.37,-0.37 0.37,-0.97 0,-1.34zM11.29,6.63L3.29,14.63c-0.37,0.37 -0.37,0.98 0,1.35l4,4c0.37,0.37 0.98,0.37 1.35,0l8,-8 -3.68,-3.68zM3.11,20.5h15.78v1H3.11z"/>' },
       { id: 'eyedropper', key: 'editor_tool_eyedropper', icon: '<path fill="currentColor" stroke="none" d="M17.66,5.41l0.92,0.92 -2.69,2.69 -0.92,-0.92 2.69,-2.69M17.67,3c-0.26,0 -0.51,0.1 -0.71,0.29l-3.12,3.12 -1.93,-1.91 -1.41,1.41 0.42,0.42 -3.25,3.25V21h4.75l8.92,-8.92 0.42,0.42 1.41,-1.41 -1.92,-1.92 3.12,-3.12c0.4,-0.4 0.4,-1.03 0,-1.42l-2.34,-2.34c-0.2,-0.19 -0.45,-0.29 -0.71,-0.29zM6.92,19L5,17.08l8.06,-8.06 1.92,1.92L6.92,19z"/>' },
       { id: 'fill', key: 'editor_tool_fill', icon: '<path fill="currentColor" stroke="none" d="M16.56,8.94L7.62,0 6.21,1.41l2.38,2.38 -5.15,5.15c-0.59,0.59 -0.59,1.54 0,2.12l5.5,5.5c0.29,0.29 0.68,0.44 1.06,0.44s0.77,-0.15 1.06,-0.44l5.5,-5.5c0.59,-0.58 0.59,-1.53 0,-2.12zM5.21,10L10,5.21 14.79,10H5.21zM19,11.5s-2,2.17 -2,3.5c0,1.1 0.9,2 2,2s2,-0.9 2,-2c0,-1.33 -2,-3.5 -2,-3.5z"/>' }
     ];
@@ -2057,27 +2087,31 @@
       qb.hidden = false;
       var trackH = qb.clientHeight;
       if (trackH <= 0) return;
-      // [修复] 懒加载会让 scrollHeight 变（每 +20 列就变大）→ thumb 长度跳动
-      // 改用「总列数 × 单列高度」估算完整内容高度，保证 thumb 长度恒定
-      var list = $('codeList');
-      var itemH = 0;
-      if (list && list.children.length > 0) {
-        itemH = list.children[0].offsetHeight + 8; // +8 = 卡片间距
-      }
-      var estTotal = itemH > 0 ? (itemH * VM.artW + 140) : sc.scrollHeight;
-      var total2 = Math.max(estTotal - sc.clientHeight, 1);
+      // [修复] thumb 长度只依赖视口/虚拟总高比例，恒定不跳变
+      var estTotal = virtTotal();
       var visRatio = Math.min(1, Math.max(0.04, sc.clientHeight / Math.max(1, estTotal)));
       var thH = Math.max(4, trackH * visRatio);
       th.style.height = thH + 'px';
-      var f = Math.min(1, Math.max(0, total > 0 ? sc.scrollTop / total : 0));
+      // 位置：用「与 seek 相同的口径」算，保证拖到底时 thumb 也到底（不反弹）
+      var realTotal = Math.max(1, sc.scrollHeight - sc.clientHeight);
+      var f = Math.min(1, Math.max(0, sc.scrollTop / realTotal));
       th.style.top = (f * (trackH - thH)) + 'px';
     }
     VM._syncQuickBar = sync;
 
     var dragging = false;
+    /** 虚拟总高（与 sync 一致）：避免懒加载导致 scrollHeight 突变引发触底反弹。 */
+    function virtTotal() {
+      var list = $('codeList');
+      var itemH = 0;
+      if (list && list.children.length > 0) itemH = list.children[0].offsetHeight + 8;
+      if (itemH > 0 && VM.artW > 0) return itemH * VM.artW + 140;
+      return sc.scrollHeight;
+    }
     function seek(e) {
       var r = qb.getBoundingClientRect();
       var f = clamp((e.clientY - r.top) / r.height, 0, 1);
+      // 67 = 底部留白（与 CSS padding-bottom 对应），让滑到底时能真正到底
       sc.scrollTop = f * (sc.scrollHeight - sc.clientHeight);
       sync();
     }
@@ -2113,13 +2147,41 @@
       };
     }
 
+    /** [照抄 PixelCanvas.forEachLine] 两点间直线插值，避免快速拖动漏格（断触）。 */
+    function forEachLine(x0, y0, x1, y1, fn) {
+      var dx = Math.abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
+      var dy = -Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
+      var err = dx + dy;
+      for (;;) {
+        fn(x0, y0);
+        if (x0 === x1 && y0 === y1) break;
+        var e2 = 2 * err;
+        if (e2 >= dy) { err += dy; x0 += sx; }
+        if (e2 <= dx) { err += dx; y0 += sy; }
+      }
+    }
+
+    function paintCell(x, y) {
+      if (x < 0 || y < 0 || x >= VM.editW || y >= VM.editH) return;
+      var idx = y * VM.editW + x;
+      if (VM.editTool === 'brush') VM.editPixels[idx] = VM.editColor;
+      else if (VM.editTool === 'eraser') VM.editPixels[idx] = 0;
+    }
+
     function paint(e) {
       var c = cellFrom(e);
-      if (c.x === edLastX && c.y === edLastY) return;
-      edLastX = c.x; edLastY = c.y;
       VM.edSel = c.y * VM.editW + c.x;
-      if (VM.editTool === 'brush') VM.editPixels[c.y * VM.editW + c.x] = VM.editColor;
-      else if (VM.editTool === 'eraser') VM.editPixels[c.y * VM.editW + c.x] = 0;
+      if (edLastX < 0 || edLastY < 0) {
+        // 起笔：只画当前格
+        paintCell(c.x, c.y);
+      } else if (edLastX !== c.x || edLastY !== c.y) {
+        // [照抄] 从上一点到当前点直线补格
+        forEachLine(edLastX, edLastY, c.x, c.y, paintCell);
+      } else {
+        renderEdInfo();
+        return;
+      }
+      edLastX = c.x; edLastY = c.y;
       renderEditor();
       renderEdInfo();
     }
@@ -2610,7 +2672,12 @@
       navs[j].classList.toggle('is-active', navs[j].getAttribute('data-tab') === name);
     }
     if (name === 'about') renderAbout();
-    if (name === 'palette') renderPalette();
+    if (name === 'palette') {
+      renderPalette();
+      // 页面刚显示时 clientWidth 可能是 0 → 再补画一次
+      requestAnimationFrame(function () { drawPaletteView(); renderPalRulers(); syncPalBars(); });
+      setTimeout(function () { drawPaletteView(); renderPalRulers(); syncPalBars(); }, 80);
+    }
     if (name === 'code') renderCodes();
   }
 
@@ -2686,11 +2753,8 @@
     $('sizeH').onclick = function () { showSizeDialog(false); };
     $('swapBtn').onclick = function () {
       var t = VM.canvasWidth;
-      VM.canvasWidth = VM.canvasHeight;
-      VM.canvasHeight = t;
-      updateSizeUI();
-      renderPresets();
-      drawPreview();
+      var ok = setCanvasSize(VM.canvasHeight, t);
+      if (!ok) toast(S('size_ratio_locked'));
     };
 
     // 拖拽调整胶囊
