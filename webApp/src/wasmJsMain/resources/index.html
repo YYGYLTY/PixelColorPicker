@@ -163,46 +163,92 @@
 
   push('INFO', 'HTML 已执行，开始等待 wasm');
 
-  // 主动预取 skiko.wasm 以显示下载进度；
-  // 浏览器缓存（max-age=600）会让 Skiko 自己再取时直接命中。
-  (function prefetch() {
+  // ---- 网络监控：包装 fetch/XHR，旁路观察所有 wasm 下载进度 ----
+  (function watchNetwork() {
     var barfill = document.getElementById('barfill');
     var bootmsg = document.getElementById('bootmsg');
-    var bar = document.getElementById('bar');
-    var target = null;
-    try {
-      target = new URL('658820f72b4617efb380.wasm', location.href).href;
-    } catch (e) {}
-    if (!target || !window.fetch || !window.ReadableStream) return;
+    var files = {};
+    var order = [];
 
-    fetch(target, { cache: 'force-cache' }).then(function (resp) {
-      if (!resp.ok || !resp.body) return;
-      var total = parseInt(resp.headers.get('content-length') || '0', 10);
-      var got = 0;
-      var reader = resp.body.getReader();
-      function pump() {
-        return reader.read().then(function (r) {
-          if (r.done) {
-            if (bootmsg) bootmsg.textContent = '核心引擎就绪，正在启动界面…';
-            if (bar) bar.classList.add('done');
-            push('INFO', 'skiko.wasm 预取完成 ' + (got / 1048576).toFixed(1) + 'MB');
-            return;
-          }
-          got += r.value.length;
-          if (total > 0 && barfill) {
-            var pct = Math.min(100, Math.round(got / total * 100));
-            barfill.style.width = pct + '%';
-            if (bootmsg) bootmsg.textContent = '正在加载核心引擎 ' + pct + '%';
-          } else if (bootmsg) {
-            bootmsg.textContent = '正在加载 ' + (got / 1048576).toFixed(1) + 'MB';
-          }
-          return pump();
-        });
+    function render() {
+      var got = 0, total = 0, i;
+      for (i = 0; i < order.length; i++) {
+        got += files[order[i]].got;
+        if (files[order[i]].total > 0) total += files[order[i]].total;
       }
-      return pump();
-    }).catch(function (e) {
-      push('WARN', '预取失败（不影响后续加载）: ' + e.message);
-    });
+      var mb = function (b) { return (b / 1048576).toFixed(2); };
+      if (total > 0) {
+        var pct = Math.min(100, Math.round(got / total * 100));
+        if (barfill) barfill.style.width = pct + '%';
+        if (bootmsg) {
+          bootmsg.textContent = pct >= 100
+            ? ('资源下载完成（' + mb(got) + 'MB），正在编译启动…')
+            : ('正在下载资源 ' + pct + '%（' + mb(got) + ' / ' + mb(total) + 'MB）');
+        }
+      } else if (got > 0) {
+        if (bootmsg) bootmsg.textContent = '正在下载 ' + mb(got) + 'MB';
+      }
+    }
+
+    function track(url) {
+      if (!files[url]) { files[url] = { got: 0, total: 0 }; order.push(url); }
+      return files[url];
+    }
+
+    if (window.fetch) {
+      var of = window.fetch;
+      window.fetch = function (input) {
+        var url = '';
+        try { url = (typeof input === 'string') ? input : (input && input.url) || ''; } catch (e) {}
+        var pr = of.apply(this, arguments);
+        if (!/\.wasm(\?|$)/.test(url)) return pr;
+        var name = url.split('/').pop().split('?')[0];
+        var rec = track(url);
+        push('NET', '请求 ' + name);
+        pr.then(function (resp) {
+          try {
+            var t = parseInt(resp.headers.get('content-length') || '0', 10);
+            if (t > 0) rec.total = t;
+            render();
+          } catch (e) {}
+          if (!resp.body || !resp.clone) return;
+          var reader = resp.clone().body.getReader();
+          (function pump() {
+            return reader.read().then(function (r) {
+              if (r.done) {
+                push('NET', name + ' 下载完 ' + (rec.got / 1048576).toFixed(2) + 'MB');
+                render();
+                return;
+              }
+              rec.got += r.value.length;
+              render();
+              return pump();
+            });
+          })().catch(function () {});
+        }).catch(function (e) {
+          push('NET', name + ' 失败: ' + (e && e.message));
+        });
+        return pr;
+      };
+    }
+
+    if (window.XMLHttpRequest) {
+      var OX = window.XMLHttpRequest;
+      window.XMLHttpRequest = function () {
+        var x = new OX();
+        var url = '';
+        var os = x.open;
+        x.open = function (m, u) { url = u || ''; return os.apply(x, arguments); };
+        x.addEventListener('progress', function (ev) {
+          if (!/\.wasm(\?|$)/.test(url)) return;
+          var rec = track(url);
+          if (ev.lengthComputable) rec.total = ev.total;
+          rec.got = ev.loaded;
+          render();
+        });
+        return x;
+      };
+    }
   })();
 
   // 检测 canvas 是否真的被绘制过（Compose 首帧会设置非零尺寸并绘制）
