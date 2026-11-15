@@ -1,3 +1,4 @@
+import org.jetbrains.compose.resources.ResourcesExtension
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 
 plugins {
@@ -32,4 +33,15 @@ kotlin {
             }
         }
     }
+}
+
+
+// 中文字体需要 Res.font.* 访问器。
+// 默认 Auto 模式在“资源只被 wasmJs sourceSet 引用”时会跳过 Res 类生成，
+// 强制 Always 保证 Res 一定存在。
+compose.resources {
+    generateResClass = always
+    packageOfResClass = "com.pixelcolorpicker.generated.resources"
+    publicResClass = false
+    nameOfResClass = "Res"
 }

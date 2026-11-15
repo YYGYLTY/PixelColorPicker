@@ -66,3 +66,28 @@ val MonoStyle = TextStyle(
     fontSize = 14.sp,
     lineHeight = TextUnit.Unspecified,
 )
+
+
+/**
+ * 用指定 FontFamily 重建整套 Typography。
+ *
+ * wasm 端必须这么干：Compose Web 的 Skia 没有 CJK 字形，
+ * 注入子集字体后所有字重统一用它（子集只有 Regular）。
+ */
+fun appTypographyWith(family: FontFamily): Typography = AppTypography.copy(
+    headlineMedium = AppTypography.headlineMedium.copy(fontFamily = family),
+    titleLarge = AppTypography.titleLarge.copy(fontFamily = family),
+    titleMedium = AppTypography.titleMedium.copy(fontFamily = family),
+    bodyLarge = AppTypography.bodyLarge.copy(fontFamily = family),
+    bodyMedium = AppTypography.bodyMedium.copy(fontFamily = family),
+    bodySmall = AppTypography.bodySmall.copy(fontFamily = family),
+    labelLarge = AppTypography.labelLarge.copy(fontFamily = family),
+    labelMedium = AppTypography.labelMedium.copy(fontFamily = family),
+    labelSmall = AppTypography.labelSmall.copy(fontFamily = family),
+    displayLarge = AppTypography.displayLarge.copy(fontFamily = family),
+    displayMedium = AppTypography.displayMedium.copy(fontFamily = family),
+    displaySmall = AppTypography.displaySmall.copy(fontFamily = family),
+    headlineLarge = AppTypography.headlineLarge.copy(fontFamily = family),
+    headlineSmall = AppTypography.headlineSmall.copy(fontFamily = family),
+    titleSmall = AppTypography.titleSmall.copy(fontFamily = family),
+)

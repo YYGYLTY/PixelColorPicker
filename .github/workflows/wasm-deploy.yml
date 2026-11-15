@@ -1,0 +1,104 @@
+name: Deploy wasm preview
+
+on:
+  push:
+    branches: [feat/wasm-compose]
+    paths:
+      - 'webApp/**'
+      - 'gradle/**'
+      - 'gradle.properties'
+      - '*.gradle.kts'
+      - '.github/workflows/wasm-deploy.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.1.0'
+
+      # Kotlin/Wasm 需要 org.nodejs:node，这个包不在 Maven
+      - name: Pre-seed Node.js
+        run: |
+          set -e
+          NODE_VER=25.0.0
+          IVY="$HOME/.gradle/local-node-repo/org.nodejs/node/$NODE_VER"
+          mkdir -p "$IVY"
+          cd /tmp
+          curl -fsSL --retry 5 -o node.tar.gz \
+            "https://nodejs.org/dist/v${NODE_VER}/node-v${NODE_VER}-linux-x64.tar.gz"
+          gzip -t node.tar.gz
+          cp node.tar.gz "$IVY/node-v${NODE_VER}-linux-x64.tar.gz"
+          MV="$HOME/.gradle/local-node-repo/org/nodejs/node/$NODE_VER"
+          mkdir -p "$MV"
+          cp node.tar.gz "$MV/node-$NODE_VER-linux-x64.tar.gz"
+          echo "<project><modelVersion>4.0.0</modelVersion><groupId>org.nodejs</groupId><artifactId>node</artifactId><version>$NODE_VER</version></project>" > "$MV/node-$NODE_VER.pom"
+
+      # binaryen（wasm-opt）同样不在 Maven
+      - name: Pre-seed Binaryen
+        run: |
+          set -e
+          BIN_VER=125
+          B="$HOME/.gradle/local-node-repo/com/github/webassembly/binaryen/$BIN_VER"
+          mkdir -p "$B"
+          cd /tmp
+          curl -fsSL --retry 5 -o binaryen.tar.gz \
+            "https://github.com/WebAssembly/binaryen/releases/download/version_${BIN_VER}/binaryen-version_${BIN_VER}-x86_64-linux.tar.gz"
+          gzip -t binaryen.tar.gz
+          cp binaryen.tar.gz "$B/binaryen-${BIN_VER}-x86_64-linux.tar.gz"
+          echo '<?xml version="1.0" encoding="UTF-8"?><project xmlns="http://maven.apache.org/POM/4.0.0"><modelVersion>4.0.0</modelVersion><groupId>com.github.webassembly</groupId><artifactId>binaryen</artifactId><version>'"$BIN_VER"'</version><packaging>tar.gz</packaging></project>' > "$B/binaryen-${BIN_VER}.pom"
+
+      - name: Build wasm
+        run: |
+          gradle :webApp:wasmJsBrowserDistribution --no-daemon --stacktrace
+        env:
+          GRADLE_OPTS: '-Xmx3g'
+
+      # 组装 Pages 产物：根目录仍是旧纯网页版，wasm 放 /preview/
+      - name: Assemble site
+        run: |
+          set -e
+          mkdir -p site/preview
+          if [ -d web ]; then
+            cp -r web/. site/
+            echo '✓ 已复制旧版 web/ 到根目录'
+          else
+            echo '⚠ web/ 不存在，根目录留空'
+          fi
+          cp -r webApp/build/dist/wasmJs/productionExecutable/. site/preview/
+          echo '=== 站点结构 ==='
+          find site -maxdepth 2 -type f | head -20
+          du -sh site site/preview
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

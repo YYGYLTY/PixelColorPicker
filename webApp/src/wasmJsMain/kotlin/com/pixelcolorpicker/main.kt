@@ -83,7 +83,7 @@ fun App() {
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        text = str("app_description"),
+                        text = "图片像素化 · 色板码转换 · 画布编辑",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -100,12 +100,13 @@ fun App() {
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
-                        InfoRow("主题色 primary", "已加载")
+                        InfoRow("中文字体", "Noto Sans SC 子集 4494 字")
+                        InfoRow("主题配色", "深色方案已加载")
                         InfoRow("字符串表", "${Strings.keys.size} 条 × 3 语言")
-                        InfoRow("图标 AppIcons", "Home/Palette/Code/About 可绘制")
-                        InfoRow("导航 BottomNav", "见底部")
-                        InfoRow("Pixelator", "已移植（5 种算法）")
-                        InfoRow("PaletteCodec", "已移植（GZIP+Base64）")
+                        InfoRow("图标", "首页 / 色板 / 编码 / 关于")
+                        InfoRow("底部导航", "见下方")
+                        InfoRow("像素化算法", "已移植 5 种")
+                        InfoRow("色板编码", "GZIP + Base64 已移植")
                     }
                 }
 

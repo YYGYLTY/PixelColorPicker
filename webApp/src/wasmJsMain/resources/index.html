@@ -4,13 +4,64 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>PixelColorPicker</title>
-<script src="webApp.js"></script>
 <style>
-  html, body { margin: 0; padding: 0; height: 100%%; background: #08090F; overflow: hidden; }
-  #ComposeTarget { width: 100%%; height: 100%%; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: #08090F; overflow: hidden;
+    -webkit-text-size-adjust: 100%;
+  }
+  #ComposeTarget { width: 100%; height: 100%; display: block; }
+  /* 首屏加载提示：wasm 体积较大，避免白屏 */
+  #boot {
+    position: fixed; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 18px;
+    background: #08090F;
+    color: #9AA0B4;
+    font: 14px/1.5 -apple-system, "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+    transition: opacity .35s ease;
+    z-index: 10;
+  }
+  #boot.hide { opacity: 0; pointer-events: none; }
+  #boot .ring {
+    width: 34px; height: 34px;
+    border: 3px solid #1E2130;
+    border-top-color: #7C5CFF;
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
 </style>
 </head>
 <body>
+<div id="boot"><div class="ring"></div><div>正在加载…</div></div>
 <canvas id="ComposeTarget"></canvas>
+<script src="webApp.js"></script>
+<script>
+  // wasm 初始化完成后移除加载层
+  (function () {
+    var boot = document.getElementById('boot');
+    function hide() {
+      if (!boot || boot.classList.contains('hide')) return;
+      boot.classList.add('hide');
+      setTimeout(function () { boot && boot.remove(); }, 400);
+    }
+    // Compose 首帧后 canvas 会有非零尺寸
+    var tries = 0;
+    var timer = setInterval(function () {
+      var c = document.getElementById('ComposeTarget');
+      tries++;
+      if (c && c.width > 1 && c.height > 1) {
+        clearInterval(timer);
+        hide();
+      } else if (tries > 600) {  // 60s 兜底
+        clearInterval(timer);
+        hide();
+      }
+    }, 100);
+    window.addEventListener('load', function () { setTimeout(hide, 30000); });
+  })();
+</script>
 </body>
 </html>

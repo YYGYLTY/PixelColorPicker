@@ -5,6 +5,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 
 private val DarkColors = darkColorScheme(
     primary = DarkPrimary,
@@ -54,6 +55,9 @@ fun PixelColorPickerTheme(
     content: @Composable () -> Unit,
 ) {
     val colorScheme = if (darkTheme) DarkColors else LightColors
+    // 中文字体：wasm 的 Skia 不带 CJK，必须在 Typography 里显式指定。
+    val cjkFamily = CjkFontFamily
+    val typography = remember(cjkFamily) { appTypographyWith(cjkFamily) }
 
     // 同步给 PcpColors，使旧版视觉规范色值随主题切换。
     // 必须在组合期赋值（理由同 Android 版注释）。
@@ -61,7 +65,7 @@ fun PixelColorPickerTheme(
 
     MaterialTheme(
         colorScheme = colorScheme,
-        typography = AppTypography,
+        typography = typography,
         content = content,
     )
 }
