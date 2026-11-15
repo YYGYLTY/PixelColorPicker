@@ -31,12 +31,3 @@ kotlin {
         }
     }
 }
-
-repositories {
-    maven("https://maven.aliyun.com/repository/google")
-    maven("https://maven.aliyun.com/repository/central")
-    maven("https://maven.aliyun.com/repository/public")
-    google()
-    mavenCentral()
-    maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
-}
