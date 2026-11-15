@@ -32,6 +32,27 @@ jobs:
         with:
           gradle-version: '9.1.0'
 
+      # Kotlin/Wasm 的 :kotlinWasmNodeJsSetup 会去 Maven 找 org.nodejs:node，
+      # 国内镜像没有这个包 → 预下载并塞进本地 Ivy 仓库
+      - name: Pre-seed Node.js into local Ivy repo
+        run: |
+          set -e
+          NODE_VER=25.0.0
+          IVY_DIR="$HOME/.gradle/local-node-repo/org.nodejs/node/$NODE_VER"
+          mkdir -p "$IVY_DIR"
+          cd /tmp
+          curl -fsSL --retry 3 -o node.tar.gz \
+            "https://nodejs.org/dist/v${NODE_VER}/node-v${NODE_VER}-linux-x64.tar.gz"
+          ls -la node.tar.gz
+          # Ivy pattern: [artifact]v[revision]/[artifact]v[revision]-[classifier].[ext]
+          cp node.tar.gz "$IVY_DIR/node-v${NODE_VER}-linux-x64.tar.gz"
+          # 也放一份 Maven 布局（org.nodejs:node:<ver>:linux-x64@tar.gz）
+          MAVEN_DIR="$HOME/.gradle/local-node-repo/org/nodejs/node/$NODE_VER"
+          mkdir -p "$MAVEN_DIR"
+          cp node.tar.gz "$MAVEN_DIR/node-$NODE_VER-linux-x64.tar.gz"
+          echo "<project><modelVersion>4.0.0</modelVersion><groupId>org.nodejs</groupId><artifactId>node</artifactId><version>$NODE_VER</version></project>" > "$MAVEN_DIR/node-$NODE_VER.pom"
+          find "$HOME/.gradle/local-node-repo" -type f | head -10
+
       - name: Compile wasmJs
         run: |
           gradle :webApp:compileKotlinWasmJs --stacktrace --no-daemon
