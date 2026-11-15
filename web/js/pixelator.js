@@ -1,103 +1,131 @@
-/*
- * PixelColorPicker Web · 像素化引擎
- * ------------------------------------------------------------
- * 移植自 app/src/main/java/com/pixelcolorpicker/image/Pixelator.kt
+/**
+ * Pixelator.js - 1:1 照搬 app/src/main/java/com/pixelcolorpicker/image/Pixelator.kt
  *
- * 核心思想：自适应超采样 + 核函数插值
- *  - 每个输出格在源图上有一个覆盖范围（footprint）；
- *  - 在 coverage 内取 N×N 个采样点，每个点用核函数取值；
- *  - 对采样结果求平均。
+ * 本文件为逐行翻译，不再有历史改动残留。
+ * 对应 Kotlin 源：Pixelator.kt（382 行）
  *
- * 坐标映射与 Pixelator.kt 完全一致（拉伸语义，不做 cover 裁剪）：
- *  scale=1 时整张源图铺满输出框，源图与画布比例不同会被拉伸——与 App 行为相同。
- *  18 色板码协议与 App 完全一致。
+ * 约定：
+ *  - 颜色用 32 位有符号整数 ARGB（与 Kotlin Int 一致）
+ *  - ushr -> >>>，>> -> >>
+ *  - Float 运算用 Math.fround 保持单精度语义
  */
-(function (root, factory) {
-  if (typeof module === 'object' && module.exports) {
-    module.exports = factory();
-  } else {
-    root.PCPPixelator = factory();
-  }
-})(typeof self !== 'undefined' ? self : this, function () {
+(function (global) {
   'use strict';
 
-  var ALGO = {
-    NEAREST: 'nearest',
-    BILINEAR: 'bilinear',
-    BICUBIC: 'bicubic',
-    LANCZOS: 'lanczos',
-    AVERAGE: 'average',
-    CUSTOM: 'custom'
+  /** 像素化算法（与 Kotlin enum PixelAlgorithm 一一对应） */
+  var PixelAlgorithm = {
+    Nearest: 0,
+    Bilinear: 1,
+    Bicubic: 2,
+    Lanczos: 3,
+    Average: 4,
+    Custom: 5
   };
 
-  /** 各算法的自适应采样上限 */
-  var GRID_N = {
-    nearest: 1,
-    bilinear: 2,
-    bicubic: 3,
-    lanczos: 4,
-    average: 6
+  // app.js 传的是字符串（'nearest'/'custom'...），这里统一转成枚举
+  var NAME_TO_ALGO = {
+    nearest: PixelAlgorithm.Nearest,
+    bilinear: PixelAlgorithm.Bilinear,
+    bicubic: PixelAlgorithm.Bicubic,
+    lanczos: PixelAlgorithm.Lanczos,
+    average: PixelAlgorithm.Average,
+    custom: PixelAlgorithm.Custom
   };
 
-  // ---------------- 单点采样 ----------------
-
-  function clampedIndex(v, max) {
-    return v < 0 ? 0 : (v > max ? max : v);
+  function toAlgo(v, dflt) {
+    if (typeof v === 'number') return v;
+    if (typeof v === 'string') {
+      var k = v.toLowerCase();
+      if (Object.prototype.hasOwnProperty.call(NAME_TO_ALGO, k)) return NAME_TO_ALGO[k];
+    }
+    return dflt;
   }
 
+  /** Kotlin Float 单精度语义 */
+  function f(x) { return Math.fround(x); }
+
+  /** Kotlin round(Float): Int —— 四舍五入到最近整数（.5 向上） */
+  function kRound(x) { return Math.floor(f(x) + 0.5); }
+
+  /** Kotlin Int.coerceIn */
+  function coerceIn(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); }
+
+  /** (c ushr 24) and 0xFF */
+  function a8(c) { return (c >>> 24) & 0xFF; }
+  function r8(c) { return (c >>> 16) & 0xFF; }
+  function g8(c) { return (c >>> 8) & 0xFF; }
+  function b8(c) { return c & 0xFF; }
+
+  /** Kotlin: (a shl 24) or (r shl 16) or (g shl 8) or b */
+  function pack(a, r, g, b) {
+    a = coerceIn(Math.trunc(a), 0, 255);
+    r = coerceIn(Math.trunc(r), 0, 255);
+    g = coerceIn(Math.trunc(g), 0, 255);
+    b = coerceIn(Math.trunc(b), 0, 255);
+    return ((a << 24) | (r << 16) | (g << 8) | b) | 0;
+  }
+
+  // ---------- 采样 ----------
+
+  /** sampleNearest：round 后 clamp */
   function sampleNearest(src, srcW, srcH, px, py) {
-    var x = clampedIndex(Math.round(px), srcW - 1);
-    var y = clampedIndex(Math.round(py), srcH - 1);
+    var x = coerceIn(kRound(px), 0, srcW - 1);
+    var y = coerceIn(kRound(py), 0, srcH - 1);
     return src[y * srcW + x] | 0;
   }
 
   function getClamped(src, srcW, srcH, x, y) {
-    var cx = clampedIndex(x, srcW - 1);
-    var cy = clampedIndex(y, srcH - 1);
+    var cx = coerceIn(x, 0, srcW - 1);
+    var cy = coerceIn(y, 0, srcH - 1);
     return src[cy * srcW + cx] | 0;
   }
 
-  function pack(a, r, g, b) {
-    a = a < 0 ? 0 : (a > 255 ? 255 : a);
-    r = r < 0 ? 0 : (r > 255 ? 255 : r);
-    g = g < 0 ? 0 : (g > 255 ? 255 : g);
-    b = b < 0 ? 0 : (b > 255 ? 255 : b);
-    return ((a << 24) | (r << 16) | (g << 8) | b) | 0;
-  }
-
-  function sampleBilinear(src, srcW, srcH, px, py) {
-    var x = px - 0.5, y = py - 0.5;
-    var x0 = Math.floor(x), y0 = Math.floor(y);
-    var fx = x - x0, fy = y - y0;
-
-    var c00 = getClamped(src, srcW, srcH, x0, y0);
-    var c10 = getClamped(src, srcW, srcH, x0 + 1, y0);
-    var c01 = getClamped(src, srcW, srcH, x0, y0 + 1);
-    var c11 = getClamped(src, srcW, srcH, x0 + 1, y0 + 1);
-
+  function blend4(c00, c10, c01, c11, fx, fy) {
     var w00 = (1 - fx) * (1 - fy);
     var w10 = fx * (1 - fy);
     var w01 = (1 - fx) * fy;
     var w11 = fx * fy;
-
-    var a = ((c00 >>> 24) & 0xFF) * w00 + ((c10 >>> 24) & 0xFF) * w10 +
-            ((c01 >>> 24) & 0xFF) * w01 + ((c11 >>> 24) & 0xFF) * w11;
-    var r = ((c00 >>> 16) & 0xFF) * w00 + ((c10 >>> 16) & 0xFF) * w10 +
-            ((c01 >>> 16) & 0xFF) * w01 + ((c11 >>> 16) & 0xFF) * w11;
-    var g = ((c00 >>> 8) & 0xFF) * w00 + ((c10 >>> 8) & 0xFF) * w10 +
-            ((c01 >>> 8) & 0xFF) * w01 + ((c11 >>> 8) & 0xFF) * w11;
-    var b = (c00 & 0xFF) * w00 + (c10 & 0xFF) * w10 +
-            (c01 & 0xFF) * w01 + (c11 & 0xFF) * w11;
-
-    return pack(a | 0, r | 0, g | 0, b | 0);
+    var a = a8(c00) * w00 + a8(c10) * w10 + a8(c01) * w01 + a8(c11) * w11;
+    var r = r8(c00) * w00 + r8(c10) * w10 + r8(c01) * w01 + r8(c11) * w11;
+    var g = g8(c00) * w00 + g8(c10) * w10 + g8(c01) * w01 + g8(c11) * w11;
+    var b = b8(c00) * w00 + b8(c10) * w10 + b8(c01) * w01 + b8(c11) * w11;
+    return pack(a, r, g, b);
   }
 
-  /** Catmull-Rom 三次卷积核（a = -0.5） */
+  function sampleBilinear(src, srcW, srcH, px, py) {
+    var x = f(px - 0.5);
+    var y = f(py - 0.5);
+    var x0 = Math.floor(x);
+    var y0 = Math.floor(y);
+    var fx = f(x - x0);
+    var fy = f(y - y0);
+    var c00 = getClamped(src, srcW, srcH, x0, y0);
+    var c10 = getClamped(src, srcW, srcH, x0 + 1, y0);
+    var c01 = getClamped(src, srcW, srcH, x0, y0 + 1);
+    var c11 = getClamped(src, srcW, srcH, x0 + 1, y0 + 1);
+    return blend4(c00, c10, c01, c11, fx, fy);
+  }
+
+  /** 三次卷积核（a = -0.5，Catmull-Rom 风格） */
   function cubicWeight(t) {
     var a = -0.5;
     var at = Math.abs(t);
-    if (at <= 1) return (a + 2) * at * at * at - (a + 3) * at * at + 1;
-    if (at < 2) return a * at * at * at - 5 * a * at * at + 8 * a * at - 4 * a;
+    // 严格按 JVM 的「左结合 + float 逐步运算」求值，
+    // 任何一步用 double 都会导致权重末位不同，最终表现为 255/254 抖动。
+    if (at <= 1) {
+      var p = f(a + 2);
+      p = f(p * at); p = f(p * at); p = f(p * at);   // (a+2)*at*at*at
+      var q = f(a + 3);
+      q = f(q * at); q = f(q * at);                   // (a+3)*at*at
+      return f(f(p - q) + 1);
+    }
+    if (at < 2) {
+      var p2 = f(a * at); p2 = f(p2 * at); p2 = f(p2 * at);   // a*at^3
+      var q2 = f(5 * a); q2 = f(q2 * at); q2 = f(q2 * at);    // 5a*at^2
+      var r2 = f(8 * a); r2 = f(r2 * at);                      // 8a*at
+      var s2 = f(4 * a);                                       // 4a
+      return f(f(f(p2 - q2) + r2) - s2);
+    }
     return 0;
   }
 
@@ -107,207 +135,263 @@
     var at = Math.abs(t);
     if (at < 1e-6) return 1;
     if (at >= a) return 0;
-    var pt = Math.PI * t;
-    return (Math.sin(pt) / pt) * (Math.sin(pt / a) / (pt / a));
+    // Kotlin: (sin(pt) / pt) * (sin(pt / a) / (pt / a))，全程 float
+    var pt = f(Math.PI * t);
+    var s1 = f(Math.sin(pt));
+    var r1 = f(s1 / pt);
+    var pta = f(pt / a);
+    var s2 = f(Math.sin(pta));
+    var r2 = f(s2 / pta);
+    return f(r1 * r2);
   }
 
-  function sampleConvolution(src, srcW, srcH, px, py, weightFn) {
-    var x = px - 0.5, y = py - 0.5;
-    var x0 = Math.floor(x), y0 = Math.floor(y);
-    var fx = x - x0, fy = y - y0;
-
-    var wx = [weightFn(-1 - fx), weightFn(-fx), weightFn(1 - fx), weightFn(2 - fx)];
-    var wy = [weightFn(-1 - fy), weightFn(-fy), weightFn(1 - fy), weightFn(2 - fy)];
-
+  function sampleBicubic(src, srcW, srcH, px, py) {
+    var x = f(px - 0.5);
+    var y = f(py - 0.5);
+    var x0 = Math.floor(x);
+    var y0 = Math.floor(y);
+    var fx = f(x - x0);
+    var fy = f(y - y0);
+    var wx0 = cubicWeight(-1 - fx), wx1 = cubicWeight(-fx);
+    var wx2 = cubicWeight(1 - fx), wx3 = cubicWeight(2 - fx);
+    var wy0 = cubicWeight(-1 - fy), wy1 = cubicWeight(-fy);
+    var wy2 = cubicWeight(1 - fy), wy3 = cubicWeight(2 - fy);
     var accA = 0, accR = 0, accG = 0, accB = 0, wSum = 0;
     for (var dy = 0; dy < 4; dy++) {
+      var wy = dy === 0 ? wy0 : dy === 1 ? wy1 : dy === 2 ? wy2 : wy3;
       for (var dx = 0; dx < 4; dx++) {
-        var w = wx[dx] * wy[dy];
+        var wx = dx === 0 ? wx0 : dx === 1 ? wx1 : dx === 2 ? wx2 : wx3;
+        var w = f(wx * wy);
         var c = getClamped(src, srcW, srcH, x0 - 1 + dx, y0 - 1 + dy);
-        accA += ((c >>> 24) & 0xFF) * w;
-        accR += ((c >>> 16) & 0xFF) * w;
-        accG += ((c >>> 8) & 0xFF) * w;
-        accB += (c & 0xFF) * w;
-        wSum += w;
+        accA = f(accA + f(a8(c) * w)); accR = f(accR + f(r8(c) * w));
+        accG = f(accG + f(g8(c) * w)); accB = f(accB + f(b8(c) * w));
+        wSum = f(wSum + w);
       }
     }
     if (wSum <= 0) return sampleNearest(src, srcW, srcH, px, py);
-    return pack((accA / wSum) | 0, (accR / wSum) | 0, (accG / wSum) | 0, (accB / wSum) | 0);
+    return pack(f(accA / wSum), f(accR / wSum), f(accG / wSum), f(accB / wSum));
   }
 
-  function sampleByKernel(src, srcW, srcH, px, py, kernel) {
-    switch (kernel) {
-      case ALGO.NEAREST: return sampleNearest(src, srcW, srcH, px, py);
-      case ALGO.BILINEAR:
-      case ALGO.AVERAGE: return sampleBilinear(src, srcW, srcH, px, py);
-      case ALGO.BICUBIC: return sampleConvolution(src, srcW, srcH, px, py, cubicWeight);
-      case ALGO.LANCZOS: return sampleConvolution(src, srcW, srcH, px, py, lanczosWeight);
+  function sampleLanczos(src, srcW, srcH, px, py) {
+    var x = f(px - 0.5);
+    var y = f(py - 0.5);
+    var x0 = Math.floor(x);
+    var y0 = Math.floor(y);
+    var fx = f(x - x0);
+    var fy = f(y - y0);
+    var wx0 = lanczosWeight(-1 - fx), wx1 = lanczosWeight(-fx);
+    var wx2 = lanczosWeight(1 - fx), wx3 = lanczosWeight(2 - fx);
+    var wy0 = lanczosWeight(-1 - fy), wy1 = lanczosWeight(-fy);
+    var wy2 = lanczosWeight(1 - fy), wy3 = lanczosWeight(2 - fy);
+    var accA = 0, accR = 0, accG = 0, accB = 0, wSum = 0;
+    for (var dy = 0; dy < 4; dy++) {
+      var wy = dy === 0 ? wy0 : dy === 1 ? wy1 : dy === 2 ? wy2 : wy3;
+      for (var dx = 0; dx < 4; dx++) {
+        var wx = dx === 0 ? wx0 : dx === 1 ? wx1 : dx === 2 ? wx2 : wx3;
+        var w = f(wx * wy);
+        var c = getClamped(src, srcW, srcH, x0 - 1 + dx, y0 - 1 + dy);
+        accA = f(accA + f(a8(c) * w)); accR = f(accR + f(r8(c) * w));
+        accG = f(accG + f(g8(c) * w)); accB = f(accB + f(b8(c) * w));
+        wSum = f(wSum + w);
+      }
+    }
+    if (wSum <= 0) return sampleNearest(src, srcW, srcH, px, py);
+    return pack(f(accA / wSum), f(accR / wSum), f(accG / wSum), f(accB / wSum));
+  }
+
+  function sample(src, srcW, srcH, px, py, algorithm) {
+    switch (algorithm) {
+      case PixelAlgorithm.Nearest: return sampleNearest(src, srcW, srcH, px, py);
+      case PixelAlgorithm.Bilinear:
+      case PixelAlgorithm.Average: return sampleBilinear(src, srcW, srcH, px, py);
+      case PixelAlgorithm.Bicubic: return sampleBicubic(src, srcW, srcH, px, py);
+      case PixelAlgorithm.Lanczos: return sampleLanczos(src, srcW, srcH, px, py);
       default: return sampleBilinear(src, srcW, srcH, px, py);
     }
   }
 
-  // ---------------- 视口几何 ----------------
-
   /**
-   * 计算「画布框在源图上覆盖的区域」。
+   * 旧版兼容的最近邻缩放（对应 Kotlin nearestViaAndroid 的 catch 分支）。
    *
-   * @param srcW,srcH  源图尺寸
-   * @param outW,outH  输出画布尺寸（决定框的宽高比）
-   * @param scale      1 = 等比铺满画布框（cover）；>1 放大；<1 缩小
-   * @param offsetX,offsetY 平移，单位为「源图宽/高的比例」
-   * @returns {visibleW, visibleH, centerX, centerY}
+   * Kotlin 用 Android createScaledBitmap(null filter) 做最近邻，其采样中心是
+   * (i + 0.5) * srcW / outW。wasm 无 Bitmap，这里直接用同一公式自研采样，
+   * 结果与 createScaledBitmap 等价。
    */
-  function computeViewport(srcW, srcH, outW, outH, scale, offsetX, offsetY) {
-    var boxAspect = outW / outH;      // 宽 / 高
-    var srcAspect = srcW / srcH;
-
-    var baseW, baseH;
-    if (srcAspect > boxAspect) {
-      // 源图更宽 → 高度撑满
-      baseH = srcH;
-      baseW = srcH * boxAspect;
-    } else {
-      baseW = srcW;
-      baseH = srcW / boxAspect;
-    }
-
-    var s = scale > 0 ? scale : 1;
-    var visibleW = baseW / s;
-    var visibleH = baseH / s;
-
-    return {
-      visibleW: visibleW,
-      visibleH: visibleH,
-      centerX: srcW / 2 + offsetX * srcW,
-      centerY: srcH / 2 + offsetY * srcH
-    };
-  }
-
-  // ---------------- 主函数 ----------------
-
-  /**
-   * 执行像素化。
-   *
-   * @param {Int32Array|number[]} src 源像素（行优先 ARGB）
-   * @returns {Int32Array} outW*outH 的 ARGB 像素
-   */
-  function pixelate(src, srcW, srcH, outW, outH, opts) {
-    var o = opts || {};
-    var algorithm = o.algorithm || ALGO.NEAREST;
-    var customKernel = o.customKernel || ALGO.BILINEAR;
-    var customSamples = o.customSamples == null ? 4 : o.customSamples;
-    var scale = o.scale == null ? 1 : o.scale;
-    var offsetX = o.offsetX || 0;
-    var offsetY = o.offsetY || 0;
-    var rotationDeg = o.rotationDeg || 0;
-
-    if (!(outW >= 1) || !(outH >= 1)) throw new Error('输出尺寸非法');
-    if (src.length < srcW * srcH) throw new Error('源像素不足');
-
+  function nearestCompat(src, srcW, srcH, outW, outH) {
     var out = new Int32Array(outW * outH);
-
-    // 自定义算法 = 内核 + 采样密度
-    var kernel;
-    var gridN;
-    if (algorithm === ALGO.CUSTOM) {
-      kernel = (customKernel === ALGO.CUSTOM) ? ALGO.BILINEAR : customKernel;
-      gridN = Math.max(1, Math.min(8, customSamples | 0));
-    } else {
-      kernel = algorithm;
-      gridN = GRID_N[algorithm] || 1;
-    }
-
-    // [对齐 App] 与 Pixelator.kt 一致：整张源图铺满输出框（拉伸），不做 cover 裁剪
-    var safeScale = Math.max(0.01, scale);
-    var safeScaleX = Math.max(0.01, (o.scaleX == null ? safeScale : o.scaleX));
-    var safeScaleY = Math.max(0.01, (o.scaleY == null ? safeScale : o.scaleY));
-    // [修复] 采样窗口的源像素尺寸。旋转必须在「窗口坐标」内做：
-    // App 的 cx = center + rotate((u-0.5)*srcW,(v-0.5)*srcH)/scale，
-    // 在单轴时为 center + rotate((u-0.5)*winW,(v-0.5)*winH)；分轴时必须显式用 winW/winH
-    var winW = srcW / safeScaleX;
-    var winH = srcH / safeScaleY;
-    var fw = winW / outW;
-    var fh = winH / outH;
-
-    // 采样网格数：内置算法按覆盖自适应，自定义严格按用户密度
-    var nx, ny;
-    if (algorithm === ALGO.CUSTOM) {
-      nx = gridN;
-      ny = gridN;
-    } else {
-      nx = Math.max(1, Math.min(gridN, Math.ceil(fw)));
-      ny = Math.max(1, Math.min(gridN, Math.ceil(fh)));
-    }
-
-    var rad = -rotationDeg * Math.PI / 180;
-    var cosT = Math.cos(rad), sinT = Math.sin(rad);
-    var srcCenterX = srcW / 2 + offsetX * srcW;
-    var srcCenterY = srcH / 2 + offsetY * srcH;
-
     for (var j = 0; j < outH; j++) {
-      var v = (j + 0.5) / outH;
       for (var i = 0; i < outW; i++) {
-        var u = (i + 0.5) / outW;
-
-        // 窗口归一化坐标（已含 scale），旋转在此空间内做 → 不失真
-        var lx = (u - 0.5) * winW;
-        var ly = (v - 0.5) * winH;
-
-        // 逆旋转
-        var rx = lx * cosT - ly * sinT;
-        var ry = lx * sinT + ly * cosT;
-
-        // 逆缩放 + 中心/平移
-        var cx = srcCenterX + rx;
-        var cy = srcCenterY + ry;
-
-        if (kernel === ALGO.NEAREST) {
-          out[j * outW + i] = sampleNearest(src, srcW, srcH, cx, cy);
-          continue;
-        }
-
-        var accA = 0, accR = 0, accG = 0, accB = 0, count = 0;
-        for (var gy = 0; gy < ny; gy++) {
-          var oy = (ny === 1) ? 0 : ((gy + 0.5) / ny - 0.5) * fh;
-          for (var gx = 0; gx < nx; gx++) {
-            var ox = (nx === 1) ? 0 : ((gx + 0.5) / nx - 0.5) * fw;
-            var c = sampleByKernel(src, srcW, srcH, cx + ox, cy + oy, kernel);
-            accA += (c >>> 24) & 0xFF;
-            accR += (c >>> 16) & 0xFF;
-            accG += (c >>> 8) & 0xFF;
-            accB += c & 0xFF;
-            count++;
-          }
-        }
-        out[j * outW + i] = count === 0
-          ? 0
-          : ((accA / count) | 0) << 24 | ((accR / count) | 0) << 16 |
-            ((accG / count) | 0) << 8 | ((accB / count) | 0);
+        // Android createScaledBitmap(filter=false) 的最近邻取整是 floor，不是 round。
+        // 例如 2x2 -> 2x2 时 (i+0.5)*2/2 = 0.5，floor 得 0（取第一个像素），
+        // 若用 round 会得 1，导致整张图偏向最后一行/列。
+        var x = Math.floor((i + 0.5) * srcW / outW);
+        var y = Math.floor((j + 0.5) * srcH / outH);
+        x = coerceIn(x, 0, srcW - 1);
+        y = coerceIn(y, 0, srcH - 1);
+        out[j * outW + i] = src[y * srcW + x] | 0;
       }
     }
     return out;
   }
 
-  /** 预览尺寸：限制最长边 */
+  /**
+   * 主入口（1:1 对 Pixelator.pixelate）。
+   *
+   * @param {Int32Array|number[]} src ARGB 源像素（行优先）
+   * @param {number} srcW 源宽
+   * @param {number} srcH 源高
+   * @param {number} outW 输出宽
+   * @param {number} outH 输出高
+   * @param {object} opts { scale, offsetX, offsetY, rotationDeg, algorithm, customKernel, customSamples }
+   * @returns {Int32Array} 输出像素
+   */
+  function pixelate(src, srcW, srcH, outW, outH, opts) {
+    var o = opts || {};
+    var scale = o.scale == null ? 1 : o.scale;
+    var offsetX = o.offsetX == null ? 0 : o.offsetX;
+    var offsetY = o.offsetY == null ? 0 : o.offsetY;
+    var rotationDeg = o.rotationDeg == null ? 0 : o.rotationDeg;
+    var algorithm = toAlgo(o.algorithm, PixelAlgorithm.Nearest);
+    var customKernel = toAlgo(o.customKernel, PixelAlgorithm.Bilinear);
+    var customSamples = o.customSamples == null ? 4 : o.customSamples;
+
+    // require(src.size >= srcW * srcH)
+    if (src.length < srcW * srcH) throw new Error('Pixelator: src 像素不足');
+    // require(outW >= 1 && outH >= 1)
+    if (!(outW >= 1 && outH >= 1)) throw new Error('Pixelator: 输出尺寸非法');
+
+    // 自定义算法：实际使用「内核 + 采样密度」
+    var kernel;
+    if (algorithm === PixelAlgorithm.Custom) {
+      kernel = (customKernel === PixelAlgorithm.Custom) ? PixelAlgorithm.Bilinear : customKernel;
+    } else {
+      kernel = algorithm;
+    }
+
+    // 旧版兼容路径
+    var singleNearest = (algorithm === PixelAlgorithm.Nearest) ||
+      (algorithm === PixelAlgorithm.Custom &&
+        customKernel === PixelAlgorithm.Nearest && customSamples <= 1);
+    if (singleNearest && rotationDeg === 0 && offsetX === 0 && offsetY === 0 && scale === 1) {
+      return nearestCompat(src, srcW, srcH, outW, outH);
+    }
+
+    var out = new Int32Array(outW * outH);
+    var safeScale = f(Math.max(scale, 0.01));
+    // app.js 额外传 scaleX/scaleY（非等比图片的分轴缩放）。
+    // Kotlin 版只有单一 scale；不传时两者等于 safeScale，行为与 App 一致。
+    var scaleX = o.scaleX == null ? safeScale : f(Math.max(o.scaleX, 0.01));
+    var scaleY = o.scaleY == null ? safeScale : f(Math.max(o.scaleY, 0.01));
+
+    // val rad = Math.toRadians(-rotationDeg)
+    var rad = f(-rotationDeg * Math.PI / 180);
+    var cosT = f(Math.cos(rad));
+    var sinT = f(Math.sin(rad));
+
+    // 每个输出像素在源图上的覆盖范围（像素单位）
+    var fw = f(srcW / f(safeScale * outW));
+    var fh = f(srcH / f(safeScale * outH));
+
+    // 采样网格数量
+    var gridN;
+    if (algorithm === PixelAlgorithm.Custom) {
+      gridN = coerceIn(customSamples | 0, 1, 8);
+    } else {
+      switch (algorithm) {
+        case PixelAlgorithm.Nearest: gridN = 1; break;
+        case PixelAlgorithm.Bilinear: gridN = 2; break;
+        case PixelAlgorithm.Bicubic: gridN = 3; break;
+        case PixelAlgorithm.Lanczos: gridN = 4; break;
+        case PixelAlgorithm.Average: gridN = 6; break;
+        default: gridN = 8; break;
+      }
+    }
+
+    var nx, ny;
+    if (algorithm === PixelAlgorithm.Custom) {
+      nx = gridN;
+      ny = gridN;
+    } else {
+      // ceil(fw).toInt().coerceIn(1, gridN)
+      nx = coerceIn(Math.trunc(Math.ceil(fw)), 1, gridN);
+      ny = coerceIn(Math.trunc(Math.ceil(fh)), 1, gridN);
+    }
+
+    var srcCenterX = f(f(srcW / 2) + f(offsetX * srcW));
+    var srcCenterY = f(f(srcH / 2) + f(offsetY * srcH));
+
+    for (var j = 0; j < outH; j++) {
+      for (var i = 0; i < outW; i++) {
+        // 格中心映射
+        var u = f(f(i + 0.5) / outW);
+        var v = f(f(j + 0.5) / outH);
+        var lx = f(f(u - 0.5) * srcW);
+        var ly = f(f(v - 0.5) * srcH);
+        // 逆旋转
+        var rx = f(lx * cosT - ly * sinT);
+        var ry = f(lx * sinT + ly * cosT);
+        // 逆缩放 + 中心/平移
+        var cx = f(srcCenterX + f(rx / scaleX));
+        var cy = f(srcCenterY + f(ry / scaleY));
+
+        if (kernel === PixelAlgorithm.Nearest) {
+          out[j * outW + i] = sampleNearest(src, srcW, srcH, cx, cy);
+          continue;
+        }
+
+        var accR = 0, accG = 0, accB = 0, accA = 0, count = 0;
+        for (var gy = 0; gy < ny; gy++) {
+          var oy2 = ny === 1 ? 0 : f((((gy + 0.5) / ny) - 0.5) * fh);
+          for (var gx = 0; gx < nx; gx++) {
+            var ox2 = nx === 1 ? 0 : f((((gx + 0.5) / nx) - 0.5) * fw);
+            var c = sample(src, srcW, srcH, f(cx + ox2), f(cy + oy2), kernel);
+            accA += a8(c);
+            accR += r8(c);
+            accG += g8(c);
+            accB += b8(c);
+            count++;
+          }
+        }
+
+        if (count === 0) {
+          out[j * outW + i] = 0;
+        } else {
+          var aAvg = Math.trunc(accA / count) & 0xFF;
+          var rAvg = Math.trunc(accR / count) & 0xFF;
+          var gAvg = Math.trunc(accG / count) & 0xFF;
+          var bAvg = Math.trunc(accB / count) & 0xFF;
+          out[j * outW + i] = ((aAvg << 24) | (rAvg << 16) | (gAvg << 8) | bAvg) | 0;
+        }
+      }
+    }
+    return out;
+  }
+
+  /** 计算预览用尺寸（1:1 对 previewSize） */
   function previewSize(outW, outH, maxEdge) {
     var maxDim = Math.max(outW, outH);
     if (maxDim <= maxEdge) return [outW, outH];
-    var s = maxEdge / maxDim;
-    return [Math.max(1, Math.floor(outW * s)), Math.max(1, Math.floor(outH * s))];
+    var s = f(maxEdge / maxDim);
+    // 关键：Kotlin 里 `outW * s` 是 Int * Float，JVM 按「float 乘法」算，
+    // 999 * 0.5125125f = 512.0f（float 舍入后恰为整数）-> (int) 得 512。
+    // 若用 double 乘则得 511.99999 -> 511，与 App 不一致。
+    // 所以乘积也必须 fround 回 float 精度。
+    return [Math.max(1, Math.trunc(f(outW * s))), Math.max(1, Math.trunc(f(outH * s)))];
   }
 
-  return {
-    ALGO: ALGO,
-    GRID_N: GRID_N,
+  /** 粗略估算像素数 */
+  function pixelCount(w, h) { return w * h; }
+
+  var API = {
+    PixelAlgorithm: PixelAlgorithm,
     pixelate: pixelate,
     previewSize: previewSize,
-    computeViewport: computeViewport,
-    _internal: {
-      sampleNearest: sampleNearest,
-      sampleBilinear: sampleBilinear,
-      sampleConvolution: sampleConvolution,
-      cubicWeight: cubicWeight,
-      lanczosWeight: lanczosWeight
-    }
+    pixelCount: pixelCount
   };
-});
+
+  // app.js 用的是 window.PCPPixelator；同时暴露 Pixelator 供测试与兼容。
+  API.ALGO = PixelAlgorithm;
+  if (typeof module !== 'undefined' && module.exports) module.exports = API;
+  global.PCPPixelator = API;
+  global.Pixelator = API;
+})(typeof window !== 'undefined' ? window : globalThis);
