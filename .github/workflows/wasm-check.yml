@@ -53,6 +53,21 @@ jobs:
           echo "<project><modelVersion>4.0.0</modelVersion><groupId>org.nodejs</groupId><artifactId>node</artifactId><version>$NODE_VER</version></project>" > "$MAVEN_DIR/node-$NODE_VER.pom"
           find "$HOME/.gradle/local-node-repo" -type f | head -10
 
+      # Binaryen（wasm-opt）同样不在 Maven，从 GitHub Releases 预下载
+      - name: Pre-seed Binaryen into local repo
+        run: |
+          set -e
+          BIN_VER=125
+          BASE="$HOME/.gradle/local-node-repo/com/github/webassembly/binaryen/$BIN_VER"
+          mkdir -p "$BASE"
+          cd /tmp
+          curl -fsSL --retry 3 -o binaryen.tar.gz \
+            "https://github.com/WebAssembly/binaryen/releases/download/version_${BIN_VER}/binaryen-version_${BIN_VER}-x86_64-linux.tar.gz"
+          ls -la binaryen.tar.gz
+          cp binaryen.tar.gz "$BASE/binaryen-${BIN_VER}-x86_64-linux.tar.gz"
+          echo '<?xml version="1.0" encoding="UTF-8"?><project xmlns="http://maven.apache.org/POM/4.0.0"><modelVersion>4.0.0</modelVersion><groupId>com.github.webassembly</groupId><artifactId>binaryen</artifactId><version>'"$BIN_VER"'</version><packaging>tar.gz</packaging></project>' > "$BASE/binaryen-${BIN_VER}.pom"
+          find "$BASE" -type f
+
       - name: Compile wasmJs
         run: |
           gradle :webApp:compileKotlinWasmJs --stacktrace --no-daemon
